@@ -62,6 +62,15 @@ export const useUploadStore = defineStore('upload', () => {
     startTime.value = Date.now()
   }
 
+  /** 在指定站点上车，开始计时 */
+  function startRecordingAt(stopName: string, allStops: string[]) {
+    recordedSegments.value = []
+    segmentSeconds.value = []
+    timingActive.value = true
+    currentFromStop.value = stopName
+    startTime.value = Date.now()
+  }
+
   /** 按下[计时]按钮：记录从 currentFromStop 到 targetStop 的时间 */
   function recordSegment(toStop: string) {
     if (!startTime.value || !timingActive.value) return
@@ -171,6 +180,7 @@ export const useUploadStore = defineStore('upload', () => {
     segmentSeconds,
     timingActive,
     startRecording,
+    startRecordingAt,
     recordSegment,
     resetRecording,
     submit,
