@@ -28,6 +28,12 @@ const router = createRouter({
       meta: { title: '地图', tab: 'map' },
     },
     {
+      path: '/upload',
+      name: 'upload',
+      component: () => import('@/views/UploadView.vue'),
+      meta: { title: '记录', tab: 'upload' },
+    },
+    {
       path: '/about',
       name: 'about',
       component: () => import('@/views/AboutView.vue'),
