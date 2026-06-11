@@ -1,0 +1,28 @@
+{
+  "name": "campus-bus",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && python -c \"import shutil,os;shutil.rmtree('docs',ignore_errors=True);shutil.copytree('dist','docs');print('Deployed to docs/')\""
+  },
+  "dependencies": {
+    "pinia": "^2.1.7",
+    "vant": "^4.9.0",
+    "vue": "^3.4.0",
+    "vue-router": "^4.3.0"
+  },
+  "devDependencies": {
+    "@vant/auto-import-resolver": "^1.2.0",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "typescript": "~5.4.0",
+    "unplugin-auto-import": "^0.17.0",
+    "unplugin-vue-components": "^0.26.0",
+    "vite": "^5.4.0",
+    "vite-plugin-pwa": "^0.20.0",
+    "vue-tsc": "^2.0.0"
+  }
+}

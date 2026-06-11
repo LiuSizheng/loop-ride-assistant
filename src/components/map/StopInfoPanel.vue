@@ -1,0 +1,139 @@
+<script setup lang="ts">
+import { computed } from 'vue'
+import { useMapStore } from '@/stores/map'
+import { useScheduleStore } from '@/stores/schedule'
+import { getDateType, getSecondsSinceMidnight } from '@/utils/datetime'
+import RouteBadge from '@/components/common/RouteBadge.vue'
+import ETAIndicator from '@/components/common/ETAIndicator.vue'
+
+const mapStore = useMapStore()
+const scheduleStore = useScheduleStore()
+const dateType = computed(() => getDateType())
+const secondsNow = computed(() => getSecondsSinceMidnight())
+
+const arrivals = computed(() => {
+  if (!mapStore.selectedStop) return []
+  const preds = scheduleStore.getPredictionsForStop(
+    mapStore.selectedStop,
+    dateType.value
+  )
+
+  return preds
+    .map((p) => {
+      let delta = p.arrivalMinutes * 60 - secondsNow.value
+      if (delta < -3600) return null
+      if (delta < -120) return null
+      if (delta > 1800) return null
+
+      const departure = scheduleStore.departures.find(
+        (d) => d.recordId === p.departureId
+      )
+
+      return {
+        ...p,
+        departure,
+        secondsUntil: Math.round(delta),
+      }
+    })
+    .filter(Boolean)
+    .sort((a: any, b: any) => a.secondsUntil - b.secondsUntil)
+    .slice(0, 6)
+})
+
+function close() {
+  mapStore.selectStop(null)
+}
+</script>
+
+<template>
+  <transition name="slide-up">
+    <div v-if="mapStore.selectedStop" class="stop-panel">
+      <div class="panel-header">
+        <span class="panel-title">{{ mapStore.selectedStop }}</span>
+        <van-icon name="cross" @click="close" />
+      </div>
+
+      <div class="panel-body">
+        <div v-if="arrivals.length === 0" class="empty">
+          当前时段无经过此站的班车
+        </div>
+
+        <div
+          v-for="(item, idx) in arrivals"
+          :key="idx"
+          class="panel-row"
+        >
+          <RouteBadge
+            :route="(item as any).departure?.route"
+            :dining="(item as any).departure?.routeKey === 'HX1_DINING'"
+          />
+          <span class="panel-arrival-time">{{ (item as any).arrivalTime }}</span>
+          <ETAIndicator
+            :seconds-until="(item as any).secondsUntil"
+          />
+        </div>
+      </div>
+    </div>
+  </transition>
+</template>
+
+<style scoped>
+.stop-panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 70;
+  background: var(--color-card);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  max-height: 50vh;
+  display: flex;
+  flex-direction: column;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+.panel-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+.panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 20px;
+}
+.panel-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+.panel-arrival-time {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+}
+
+.empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.3s ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+}
+</style>
