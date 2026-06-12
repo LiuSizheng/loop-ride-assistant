@@ -228,13 +228,14 @@ watch(selectedRoute, () => {
 
           <div v-for="rec in uploadStore.history" :key="rec.id" class="history-card">
             <div class="history-header">
-              <span>{{ rec.date }} {{ rec.route }}</span>
+              <span>{{ rec.date }} {{ rec.created_at?.slice(11, 16) }} {{ rec.route }}</span>
               <van-button size="mini" type="danger" plain @click="uploadStore.deleteRecord(rec.id)">撤销</van-button>
             </div>
             <div class="history-segs">
-              <span v-for="(seg, i) in rec.segments" :key="i" class="hseg">
-                {{ i > 0 ? ' → ' : '' }}{{ seg.from }}→{{ seg.to }} {{ seg.seconds }}s
-              </span>
+              <template v-for="(seg, i) in rec.segments" :key="i">
+                <span v-if="i === 0" class="hseg">{{ seg.from }}</span>
+                <span class="hseg">→{{ seg.seconds }}s→{{ seg.to }}</span>
+              </template>
             </div>
           </div>
         </div>
@@ -276,6 +277,6 @@ watch(selectedRoute, () => {
 .history-section { padding: 16px; }
 .history-card { background: var(--color-card); border-radius: 10px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
 .history-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-.history-segs { font-size: 12px; color: var(--color-text-secondary); line-height: 1.6; }
-.hseg { white-space: nowrap; }
+.history-segs { font-size: 12px; color: var(--color-text-secondary); line-height: 1.8; word-break: break-all; }
+.hseg { white-space: normal; }
 </style>
