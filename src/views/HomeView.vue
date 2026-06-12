@@ -114,6 +114,10 @@ const stopArrivals = computed(() => {
       const boardSec = Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
       if (boardSec < -120 || boardSec > 1800) continue
 
+      // 确保目的地到达在上车之后（同一趟车，先到上车点再到目的地）
+      const destMinutes = p.arrivalMinutes
+      if (destMinutes <= originPred.arrivalMinutes) continue
+
       // 根据是否始发站选择 countdown
       const { label: boardLabel, status: boardStatus } = isOriginDeparture
         ? departureCountdown(boardSec)
@@ -128,6 +132,7 @@ const stopArrivals = computed(() => {
         boardSec,
         boardLabel,
         boardStatus,
+        boardTime: originPred.arrivalTime,
         destArrivalTime: p.arrivalTime,
       })
     } else {
@@ -192,6 +197,7 @@ const stopArrivals = computed(() => {
             :seconds-until="(item as any).boardSec"
             :type="(item as any).isOriginDeparture ? 'departure' : 'arrival'"
           />
+          <div class="board-time">于{{ (item as any).boardTime }}{{ (item as any).isOriginDeparture ? '发车' : '到站' }}</div>
           <div class="dest-info">预计{{ (item as any).destArrivalTime }} 到「{{ (item as any).destStop }}」</div>
         </div>
         <div class="bus-card-right" v-else>
@@ -256,5 +262,6 @@ const stopArrivals = computed(() => {
 .departure-time { font-size: 20px; font-weight: 700; color: var(--color-primary); }
 .boarding-info { font-size: 12px; color: #10B981; }
 .dest-info { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.board-time { font-size: 12px; color: var(--color-text-secondary); }
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 0; color: var(--color-text-secondary); gap: 12px; }
 </style>
