@@ -2,19 +2,95 @@ import type { Departure, RoutePattern, BusPosition, Station } from '@/types'
 import { getSecondsSinceMidnight } from './datetime'
 import { computeBearing } from './geo'
 
+type RoutePath = [number, number][]  // [[lng, lat], ...]
+
+/**
+ * 找到路径中距离给定坐标最近的点索引
+ */
+function findClosestPathIndex(path: RoutePath, lng: number, lat: number): number {
+  let best = 0
+  let bestDist = Infinity
+  for (let i = 0; i < path.length; i++) {
+    const dlng = path[i][0] - lng
+    const dlat = path[i][1] - lat
+    const dist = dlng * dlng + dlat * dlat
+    if (dist < bestDist) {
+      bestDist = dist
+      best = i
+    }
+  }
+  return best
+}
+
+/**
+ * 计算路径上两点之间的累计距离（度）
+ */
+function computePathDistances(path: RoutePath, fromIdx: number, toIdx: number): number[] {
+  const dists: number[] = [0]
+  for (let i = fromIdx + 1; i <= toIdx; i++) {
+    const dlng = path[i][0] - path[i - 1][0]
+    const dlat = path[i][1] - path[i - 1][1]
+    dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
+  }
+  return dists
+}
+
+/**
+ * 在路径段上按距离比例插值位置
+ */
+function interpolateOnPath(
+  path: RoutePath,
+  fromIdx: number,
+  toIdx: number,
+  distances: number[],
+  fraction: number
+): { lng: number; lat: number } {
+  const totalDist = distances[distances.length - 1]
+  if (totalDist === 0 || fraction <= 0) {
+    return { lng: path[fromIdx][0], lat: path[fromIdx][1] }
+  }
+  if (fraction >= 1) {
+    return { lng: path[toIdx][0], lat: path[toIdx][1] }
+  }
+
+  const targetDist = totalDist * fraction
+
+  // 二分查找目标距离所在的线段
+  let lo = 0, hi = distances.length - 1
+  while (lo < hi - 1) {
+    const mid = (lo + hi) >> 1
+    if (distances[mid] <= targetDist) lo = mid
+    else hi = mid
+  }
+
+  const segStart = distances[lo]
+  const segEnd = distances[hi]
+  const segFrac = segEnd > segStart ? (targetDist - segStart) / (segEnd - segStart) : 0
+
+  const idx = fromIdx + lo
+  const nextIdx = fromIdx + hi
+  return {
+    lng: path[idx][0] + (path[nextIdx][0] - path[idx][0]) * segFrac,
+    lat: path[idx][1] + (path[nextIdx][1] - path[idx][1]) * segFrac,
+  }
+}
+
 /**
  * 根据当前时间插值计算公交车在路线上的位置
- * 返回正在运行的公交车位置数组
+ * 使用 routePaths 中的详细路径坐标，而非站点间直线插值
  */
 export function computeActiveBusPositions(
   departures: Departure[],
   patterns: Map<string, RoutePattern>,
   stations: Station[],
+  routePaths: Record<string, RoutePath>,
   currentDate: Date = new Date()
 ): BusPosition[] {
   const secondsSinceMidnight = getSecondsSinceMidnight(currentDate)
-  const stationCoords = new Map(stations.map((s) => [s.name, { lat: s.lat, lng: s.lng }]))
   const results: BusPosition[] = []
+
+  // 站点名 → 坐标
+  const stationMap = new Map(stations.map((s) => [s.name, s]))
 
   // 考虑前 2 小时内发车的班次（可能还在路上）
   const lookbackSeconds = 7200
@@ -23,6 +99,9 @@ export function computeActiveBusPositions(
     const pattern = patterns.get(dep.routeKey)
     if (!pattern || pattern.stops.length < 2) continue
 
+    const path = routePaths[dep.routeKey]
+    if (!path || path.length < 2) continue
+
     let elapsedSeconds = secondsSinceMidnight - dep.departureMinutes * 60
     // 处理跨日
     if (elapsedSeconds < -lookbackSeconds) elapsedSeconds += 86400
@@ -30,27 +109,55 @@ export function computeActiveBusPositions(
     if (elapsedSeconds < 0) continue // 尚未发车
     if (elapsedSeconds > pattern.totalSeconds + 300) continue // 已到终点
 
-    // 找到当前在哪两站之间
+    // 为每个站点找到路径中的对应索引
+    const stopPathIndices: number[] = []
+    for (const s of pattern.stops) {
+      const station = stationMap.get(s.currentStop)
+      if (station) {
+        stopPathIndices.push(findClosestPathIndex(path, station.lng, station.lat))
+      } else {
+        stopPathIndices.push(-1)
+      }
+    }
+
+    // 找到当前在哪两个站点之间
     for (let i = 1; i < pattern.stops.length; i++) {
       const prev = pattern.stops[i - 1]
       const curr = pattern.stops[i]
       if (elapsedSeconds < curr.cumulativeSeconds) {
         const segmentStart = prev.cumulativeSeconds
-        const segmentDuration =
-          curr.cumulativeSeconds - prev.cumulativeSeconds
-        const progress =
-          segmentDuration > 0
-            ? (elapsedSeconds - segmentStart) / segmentDuration
+        const segmentDuration = curr.cumulativeSeconds - prev.cumulativeSeconds
+        const timeFraction = segmentDuration > 0
+          ? (elapsedSeconds - segmentStart) / segmentDuration
+          : 0
+
+        const fromIdx = stopPathIndices[i - 1]
+        const toIdx = stopPathIndices[i]
+
+        if (fromIdx < 0 || toIdx < 0) break
+
+        // 沿路径插值
+        const distances = computePathDistances(path, fromIdx, toIdx)
+        const pos = interpolateOnPath(path, fromIdx, toIdx, distances, timeFraction)
+
+        // 计算朝向：使用路径上当前位置附近的两点
+        let heading: number
+        const totalDist = distances[distances.length - 1]
+        if (totalDist > 0) {
+          // 在路径上取当前位置前后各一小段来确定朝向
+          const lookAheadDist = totalDist * 0.001
+          const aheadFrac = Math.min(1, timeFraction + 0.02)
+          const behindFrac = Math.max(0, timeFraction - 0.02)
+          const ahead = interpolateOnPath(path, fromIdx, toIdx, distances, aheadFrac)
+          const behind = interpolateOnPath(path, fromIdx, toIdx, distances, behindFrac)
+          heading = computeBearing(behind.lat, behind.lng, ahead.lat, ahead.lng)
+        } else {
+          const fromStation = stationMap.get(prev.currentStop)
+          const toStation = stationMap.get(curr.currentStop)
+          heading = fromStation && toStation
+            ? computeBearing(fromStation.lat, fromStation.lng, toStation.lat, toStation.lng)
             : 0
-
-        const fromCoords = stationCoords.get(prev.currentStop)
-        const toCoords = stationCoords.get(curr.currentStop)
-        if (!fromCoords || !toCoords) break
-
-        const lat =
-          fromCoords.lat + (toCoords.lat - fromCoords.lat) * progress
-        const lng =
-          fromCoords.lng + (toCoords.lng - fromCoords.lng) * progress
+        }
 
         results.push({
           departureId: dep.recordId,
@@ -58,12 +165,12 @@ export function computeActiveBusPositions(
           routeKey: dep.routeKey,
           shiftName: dep.shiftName,
           vehicleNo: dep.vehicleNo,
-          lat,
-          lng,
+          lat: pos.lat,
+          lng: pos.lng,
           fromStop: prev.currentStop,
           toStop: curr.currentStop,
-          progress,
-          heading: computeBearing(fromCoords.lat, fromCoords.lng, toCoords.lat, toCoords.lng),
+          progress: timeFraction,
+          heading,
         })
         break
       }

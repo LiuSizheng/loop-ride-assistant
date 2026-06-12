@@ -49,61 +49,48 @@ function extractShiftNumber(shiftName: string): number | null {
   return null
 }
 
-// ---- 公交车图标 HTML ----
+// ---- 公交车图标 ----
+const BASE_URL = import.meta.env.BASE_URL
+const BUS_ICON_MAP: Record<string, string> = {
+  HX1_NORMAL: 'icons/环线1路.png',
+  HX1_DINING: 'icons/就餐专线.png',
+  HX2_NORMAL: 'icons/环线2路.png',
+  HX3_NORMAL: 'icons/环线3路.png',
+  HX3_GAOCHAO: 'icons/环线3路.png',
+}
+
 function createBusIconContent(routeKey: string, shiftName: string, heading: number): string {
-  const color = getRouteColor(routeKey)
+  const file = BUS_ICON_MAP[routeKey] || BUS_ICON_MAP['HX1_NORMAL']
+  const size = routeKey.includes('HX1') ? 42 : 36
+
   const shiftNum = extractShiftNumber(shiftName)
-  const isBus = routeKey.includes('HX1')
-  const bodyW = isBus ? 36 : 28
-  const bodyH = isBus ? 20 : 18
-  const containerW = bodyW + 10
-  const containerH = bodyH + 8
 
   const badgeHtml = shiftNum !== null ? `
     <div style="
-      position:absolute;top:-7px;right:-7px;
-      width:16px;height:16px;
+      position:absolute;top:-8px;right:-8px;
+      width:18px;height:18px;
       background:#DC2626;border-radius:50%;
-      color:#fff;font-size:10px;font-weight:700;
+      color:#fff;font-size:11px;font-weight:700;
       display:flex;align-items:center;justify-content:center;
-      line-height:1;border:1.5px solid #fff;
+      line-height:1;border:2px solid #fff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.3);
+      z-index:2;
     ">${shiftNum}</div>` : ''
 
   return `<div style="
-    width:${containerW}px;height:${containerH}px;
-    position:relative;
-    transform:rotate(${heading}deg);
+    position:relative;width:${size}px;height:${size}px;
   ">
-    <div style="
-      width:${bodyW}px;height:${bodyH}px;
-      background:${color};
-      border-radius:5px;
-      position:absolute;left:0;top:0;
-      box-shadow:0 2px 4px rgba(0,0,0,0.25);
-    "></div>
-    <div style="
-      position:absolute;bottom:-2px;left:${isBus ? 6 : 4}px;
-      width:6px;height:6px;background:#1F2937;border-radius:50%;
-      box-shadow:inset 0 1px 1px rgba(255,255,255,0.3);
-    "></div>
-    <div style="
-      position:absolute;bottom:-2px;right:${isBus ? 10 : 7}px;
-      width:6px;height:6px;background:#1F2937;border-radius:50%;
-      box-shadow:inset 0 1px 1px rgba(255,255,255,0.3);
-    "></div>
+    <img src="${BASE_URL}${file}" width="${size}" height="${size}"
+      style="display:block;
+        filter:drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+        transform:rotate(${heading - 90}deg);" />
     ${badgeHtml}
   </div>`
 }
 
-function getBusMarkerOffset(routeKey: string): [number, number] {
-  const isBus = routeKey.includes('HX1')
-  const bodyW = isBus ? 36 : 28
-  const bodyH = isBus ? 20 : 18
-  return [-(bodyW + 10) / 2, -(bodyH + 8) / 2]
-}
-
 // ---- 站点渲染 ----
 function renderStops() {
+  if (!mapInstance) return
   if (!mapInstance) return
   stopMarkers.forEach((m) => m.remove())
   stopMarkers = []
@@ -157,28 +144,36 @@ function renderStops() {
       if (shownStops.has(dedupKey)) continue
       shownStops.add(dedupKey)
 
-      const markerContent = `<div style="
-        width:12px;height:12px;
-        background:${color};
-        border:2px solid #fff;
-        border-radius:50%;
-        box-shadow:0 1px 3px rgba(0,0,0,0.3);
-      "></div>`
+      const showLabel = mapStore.showLabels
+      const markerContent = showLabel
+        ? `<div style="text-align:center;line-height:1.2;">
+            <div style="
+              display:inline-block;padding:2px 6px;border-radius:10px;
+              background:${color};color:#fff;font-size:11px;
+              white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.3);
+              margin-bottom:2px;
+            ">${stop.name}</div><br>
+            <div style="
+              display:inline-block;width:10px;height:10px;
+              background:${color};border:2px solid #fff;
+              border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);
+            "></div>
+          </div>`
+        : `<div style="
+            width:12px;height:12px;
+            background:${color};
+            border:2px solid #fff;
+            border-radius:50%;
+            box-shadow:0 1px 3px rgba(0,0,0,0.3);
+          "></div>`
 
+      const offsetX = showLabel ? 0 : -6
+      const offsetY = showLabel ? -26 : -6
       const marker = new (window as any).AMap.Marker({
         position: [stop.lng, stop.lat],
         title: stop.name,
         content: markerContent,
-        offset: new (window as any).AMap.Pixel(-6, -6),
-        ...(mapStore.showLabels ? {
-          label: {
-            content: `<div style="
-              color:#1F2937;font-size:11px;font-weight:500;white-space:nowrap;
-              text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;
-            ">${stop.name}</div>`,
-            offset: new (window as any).AMap.Pixel(0, -20),
-          },
-        } : {}),
+        offset: new (window as any).AMap.Pixel(offsetX, offsetY),
         zIndex: 50,
       })
 
@@ -203,7 +198,7 @@ function animateBusPositions() {
     return
   }
 
-  const currentDate = mapStore.simulatedDate
+  const currentDate = mapStore.getSimulatedDate()
   const dateType = getDateType(currentDate)
   const deps = scheduleStore.getDepartures(dateType)
   const patternMap = new Map(
@@ -213,6 +208,7 @@ function animateBusPositions() {
     deps,
     patternMap,
     scheduleStore.stations,
+    scheduleStore.routePaths,
     currentDate
   )
 
@@ -246,11 +242,10 @@ function animateBusPositions() {
       }
     } else {
       const content = createBusIconContent(pos.routeKey, pos.shiftName, pos.heading)
-      const offset = getBusMarkerOffset(pos.routeKey)
       const marker = new (window as any).AMap.Marker({
         position: [pos.lng, pos.lat],
         content,
-        offset: new (window as any).AMap.Pixel(offset[0], offset[1]),
+        anchor: 'center',
         zIndex: 80,
       })
       marker.setMap(mapInstance)

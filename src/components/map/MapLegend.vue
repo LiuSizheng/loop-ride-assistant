@@ -37,19 +37,6 @@ function toggleVisibility(key: string) {
     <!-- 分隔 -->
     <div class="legend-divider"></div>
 
-    <!-- 全选 / 取消全选 -->
-    <div class="legend-item" @click="mapStore.setAllRoutesVisible()">
-      <van-icon name="checked" size="16" color="#10B981" />
-      <span class="legend-label">全选</span>
-    </div>
-    <div class="legend-item" @click="mapStore.clearAllRoutes()">
-      <van-icon name="clear" size="16" color="#9CA3AF" />
-      <span class="legend-label">取消全选</span>
-    </div>
-
-    <!-- 分隔 -->
-    <div class="legend-divider"></div>
-
     <!-- 站名显示/隐藏 -->
     <div class="legend-item" @click="mapStore.toggleLabels()">
       <van-icon :name="mapStore.showLabels ? 'eye-o' : 'closed-eye'" size="16" />

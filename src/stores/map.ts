@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { BusPosition } from '@/types'
 
 export const useMapStore = defineStore('map', () => {
@@ -13,14 +13,14 @@ export const useMapStore = defineStore('map', () => {
   const visibleRoutes = ref<Set<string>>(new Set(['HX1_NORMAL', 'HX1_DINING', 'HX2_NORMAL', 'HX3_NORMAL']))
   const showLabels = ref(true)
   const simulatedMinutes = ref<number | null>(null)
-  const simulatedDate = computed(() => {
+  function getSimulatedDate(): Date {
     if (simulatedMinutes.value === null) return new Date()
     const d = new Date()
     const h = Math.floor(simulatedMinutes.value / 60)
     const m = Math.floor(simulatedMinutes.value % 60)
-    d.setHours(h, m, 0, 0)
+    d.setHours(h, m, d.getSeconds(), d.getMilliseconds())
     return d
-  })
+  }
 
   function setUserLocation(lat: number, lng: number) {
     userLat.value = lat
@@ -81,7 +81,7 @@ export const useMapStore = defineStore('map', () => {
     visibleRoutes,
     showLabels,
     simulatedMinutes,
-    simulatedDate,
+    getSimulatedDate,
     setUserLocation,
     setBusPositions,
     selectStop,

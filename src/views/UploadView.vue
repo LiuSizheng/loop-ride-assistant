@@ -77,14 +77,14 @@ function boardAt(stopName: string) {
 }
 
 // 按顺序记录到站
-function tapStop(stopName: string) {
+function tapStop(idx: number) {
   if (!timingActive.value) return
-  const idx = routeStops.value.indexOf(stopName)
   // 必须是 boardIdx + recordedCount + 1（下一站）
   if (idx !== boardIdx.value + recordedCount.value + 1) {
     showFailToast('请按站点顺序依次记录')
     return
   }
+  const stopName = routeStops.value[idx]
   uploadStore.recordSegment(stopName)
 }
 
@@ -224,7 +224,7 @@ watch(selectedRoute, () => {
               <!-- 计时按钮 -->
               <van-button
                 v-if="stopState(idx) === 1"
-                size="small" type="warning" round @click="tapStop(stop)"
+                size="small" type="warning" round @click="tapStop(idx)"
               >计时</van-button>
 
               <!-- 到达终点站（最后一站计时后） -->
