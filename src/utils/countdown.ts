@@ -18,8 +18,8 @@ export interface CountdownItem {
 /**
  * 将秒数对齐到 15 秒步进（向上取整）
  */
-function snapTo15(seconds: number): number {
-  return Math.ceil(seconds / 15) * 15
+function snapTo1(seconds: number): number {
+  return Math.ceil(seconds)
 }
 
 /**
@@ -50,7 +50,7 @@ export function arrivalCountdown(secondsUntil: number): CountdownItem {
     return { secondsUntil, label: '已过站', status: 'passed' }
   }
 
-  const snapped = snapTo15(secondsUntil)
+  const snapped = snapTo1(secondsUntil)
   const label = formatSeconds(snapped) + '后到站'
 
   let status: CountdownStatus = 'normal'
@@ -75,7 +75,7 @@ export function departureCountdown(secondsUntil: number): CountdownItem {
     return { secondsUntil, label: '发车中', status: 'arrived' }  // 0~15秒
   }
 
-  const snapped = snapTo15(secondsUntil)
+  const snapped = snapTo1(secondsUntil)
   const label = formatSeconds(snapped) + '后发车'
 
   let status: CountdownStatus = 'normal'

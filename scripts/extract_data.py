@@ -303,9 +303,13 @@ def compute_arrival_predictions(departures, route_patterns):
         for stop in pattern["stops"]:
             arrival_minutes = dep["departureMinutes"] + stop["cumulativeSeconds"] / 60.0
             display_minutes = arrival_minutes % 1440
-            hours = int(display_minutes // 60)
-            mins = int(display_minutes % 60)
-            arrival_time = f"{hours:02d}:{mins:02d}"
+            # 精确到秒
+            total_secs = int(dep["departureMinutes"] * 60 + stop["cumulativeSeconds"])
+            ds = total_secs % 86400
+            h = ds // 3600
+            m = (ds % 3600) // 60
+            s = ds % 60
+            arrival_time = f"{h:02d}:{m:02d}:{s:02d}"
 
             predictions.append({
                 "departureId": dep["recordId"],

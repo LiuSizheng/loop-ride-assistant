@@ -33,7 +33,7 @@ const clickFreq = ref<Record<string, number>>({})
 
 onMounted(() => {
   try { clickFreq.value = JSON.parse(localStorage.getItem('stop_click_freq') || '{}') } catch { clickFreq.value = {} }
-  setInterval(() => { refresh(); nowTick.value++ }, 15000)
+  setInterval(() => { refresh(); nowTick.value++ }, 1000)
 })
 
 function recordClick(stopName: string) {
