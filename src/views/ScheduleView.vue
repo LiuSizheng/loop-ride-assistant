@@ -17,7 +17,7 @@ const departures = computed(() => {
   return scheduleStore.getDepartures(selectedDateType.value, selectedRoute.value)
 })
 
-// 按班次分组
+// 按班次分组（按数字顺序排序）
 const groupedDepartures = computed(() => {
   const groups = new Map<string, typeof departures.value>()
   for (const dep of departures.value) {
@@ -26,7 +26,13 @@ const groupedDepartures = computed(() => {
     }
     groups.get(dep.shiftName)!.push(dep)
   }
-  return groups
+  // 按班次名中的数字排序（第一班=1, 第二班=2...）
+  const sorted = new Map([...groups.entries()].sort((a, b) => {
+    const na = Number(a[0].match(/(\d+)/)?.[1] || 0)
+    const nb = Number(b[0].match(/(\d+)/)?.[1] || 0)
+    return na - nb
+  }))
+  return sorted
 })
 
 function toggleExpand(recordId: string) {
