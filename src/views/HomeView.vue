@@ -117,6 +117,9 @@ const stopArrivals = computed(() => {
     if (boardSec < -120 || boardSec > 1800) continue
     if (destPred.arrivalMinutes * 60 - secondsNow.value > 1800) continue
 
+    // 有定位且 origin ≠ dest 时，必须经过上车站
+    if (hasGps && originStop && originStop !== destStop && !originPred) continue
+
     seenDep.add(p.departureId)
 
     if (hasGps && originStop && originStop !== destStop && originPred) {

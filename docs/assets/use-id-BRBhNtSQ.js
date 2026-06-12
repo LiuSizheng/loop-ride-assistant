@@ -1,0 +1,1 @@
+import{A as o,aa as e}from"./index-CPNsF22U.js";function r(n){const t=e();t&&o(t.proxy,n)}let s=0;function u(){const n=e(),{name:t="unknown"}=(n==null?void 0:n.type)||{};return`${t}-${++s}`}export{r as a,u};
