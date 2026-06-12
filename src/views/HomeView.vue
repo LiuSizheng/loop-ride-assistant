@@ -24,7 +24,38 @@ const dateTypeLabel = computed(() => getDateLabel())
 const isWeekday = computed(() => dateType.value === 'weekday')
 const stopSearch = ref('')
 const selectedStop = ref<string | null>(null)
+const stopExpanded = ref(false)
 const secondsNow = computed(() => getSecondsSinceMidnight())
+
+// 站点点击频次（localStorage）
+const clickFreq = ref<Record<string, number>>({})
+try {
+  clickFreq.value = JSON.parse(localStorage.getItem('stop_click_freq') || '{}')
+} catch { clickFreq.value = {} }
+
+function recordClick(stopName: string) {
+  clickFreq.value[stopName] = (clickFreq.value[stopName] || 0) + 1
+  localStorage.setItem('stop_click_freq', JSON.stringify(clickFreq.value))
+}
+
+// 按频次排序的站点列表
+const sortedStops = computed(() => {
+  const stops = scheduleStore.stations.map(s => s.name)
+  stops.sort((a, b) => (clickFreq.value[b] || 0) - (clickFreq.value[a] || 0))
+  return stops
+})
+
+// 折叠时显示的站点（前6个高频 + 最近站点）
+const collapsedStops = computed(() => {
+  const freq = sortedStops.value.slice(0, 6)
+  return freq
+})
+
+// 搜索过滤
+const filteredStops = computed(() => {
+  if (!stopSearch.value) return []
+  return sortedStops.value.filter(s => s.includes(stopSearch.value))
+})
 
 // 自动推荐最近站点
 const nearestStop = computed(() => {
@@ -39,15 +70,6 @@ watch(nearestStop, (stop) => {
     selectedStop.value = stop.name
   }
 }, { immediate: true })
-
-// 所有可用站点
-const allStops = computed(() => scheduleStore.stations.map(s => s.name))
-
-// 搜索过滤
-const filteredStops = computed(() => {
-  if (!stopSearch.value) return allStops.value
-  return allStops.value.filter(s => s.includes(stopSearch.value))
-})
 
 // 当前选中站点的到站预测
 const stopArrivals = computed(() => {
@@ -69,6 +91,7 @@ const stopArrivals = computed(() => {
 })
 
 function selectStop(name: string) {
+  recordClick(name)
   selectedStop.value = name
   stopSearch.value = ''
 }
@@ -97,35 +120,34 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
     <div class="section">
       <van-search
         v-model="stopSearch"
-        :placeholder="nearestStop ? `搜索站点（距你最近：${nearestStop.name}）` : '搜索站点名称'"
+        placeholder="搜索站点名称"
         shape="round"
         background="transparent"
       />
-      <!-- 站点标签：搜索时显示过滤结果，未搜索时显示全部 -->
-      <div class="stop-grid">
-        <div
-          v-for="stop in (stopSearch ? filteredStops : allStops)"
-          :key="stop"
-          class="stop-chip"
-          :class="{ active: selectedStop === stop, nearest: stop === nearestStop?.name }"
+      <!-- 站点标签 -->
+      <div class="stop-grid" v-if="!stopSearch">
+        <template v-for="stop in (stopExpanded ? sortedStops : collapsedStops)" :key="stop">
+          <span class="stop-chip"
+            :class="{ active: selectedStop === stop }"
+            @click="selectStop(stop)"
+          >{{ stop }}<span v-if="freqTop3.includes(stop)" class="freq-badge">常去</span></span>
+        </template>
+        <span class="stop-chip more-btn" @click="stopExpanded = !stopExpanded">
+          {{ stopExpanded ? '收起 ▲' : '更多 ▼' }}
+        </span>
+      </div>
+      <div class="stop-grid" v-else>
+        <span v-for="stop in filteredStops" :key="stop" class="stop-chip"
+          :class="{ active: selectedStop === stop }"
           @click="selectStop(stop)"
-        >
-          {{ stop }}
-          <span v-if="stop === nearestStop?.name" class="nearest-badge">最近</span>
-        </div>
+        >{{ stop }}</span>
+        <span v-if="filteredStops.length === 0" class="no-result">未找到匹配站点</span>
       </div>
     </div>
 
     <!-- 选中站点的到站信息 -->
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
-      <div class="section-title">
-        <template v-if="selectedStop === nearestStop?.name">
-          距你最近的「{{ selectedStop }}」
-        </template>
-        <template v-else>
-          「{{ selectedStop }}」
-        </template>
-      </div>
+      <div class="section-title">「{{ selectedStop }}」</div>
 
       <div v-if="stopArrivals.length === 0" class="empty-hint">
         当前时段暂无经过此站的车次
@@ -199,12 +221,13 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 }
 .stop-chip:active { background: #EFF6FF; border-color: var(--color-primary); }
 .stop-chip.active { background: #EFF6FF; border-color: var(--color-primary); color: var(--color-primary); font-weight: 600; }
-.stop-chip.nearest { border-color: #10B981; }
-.nearest-badge {
+.freq-badge {
   position: absolute; top: -6px; right: -6px;
-  background: #10B981; color: #fff; font-size: 10px;
+  background: var(--color-primary); color: #fff; font-size: 10px;
   padding: 0 4px; border-radius: 6px; line-height: 14px;
 }
+.more-btn { background: #F3F4F6; border-color: #D1D5DB; color: var(--color-text-secondary); }
+.no-result { font-size: 13px; color: var(--color-text-secondary); padding: 4px; }
 
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 
