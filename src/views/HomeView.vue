@@ -25,14 +25,15 @@ const isWeekday = computed(() => dateType.value === 'weekday')
 const stopSearch = ref('')
 const selectedStop = ref<string | null>(null)
 const stopExpanded = ref(false)
-const secondsNow = computed(() => getSecondsSinceMidnight())
+const nowTick = ref(0)  // 用于强制刷新
+const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
 
 // 站点点击频次
 const clickFreq = ref<Record<string, number>>({})
 
 onMounted(() => {
   try { clickFreq.value = JSON.parse(localStorage.getItem('stop_click_freq') || '{}') } catch { clickFreq.value = {} }
-  setInterval(refresh, 15000)
+  setInterval(() => { refresh(); nowTick.value++ }, 15000)
 })
 
 function recordClick(stopName: string) {
