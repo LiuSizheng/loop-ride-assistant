@@ -26,9 +26,9 @@ const routeOptions = ['环线1路', '环线2路', '环线3路', '就餐专线']
 const routeStops = computed(() => {
   const rk = routeToKey[selectedRoute.value]
   const rp = scheduleStore.routePatterns.find(p => p.routeKey === rk)
-  if (!rp) return []
-  // 保留所有站点，包括终点（归位站）
-  return rp.stops.map(s => s.currentStop)
+  if (!rp || !rp.stops) return []
+  // 返回副本，避免意外修改 store 数据
+  return [...rp.stops.map(s => s.currentStop)]
 })
 
 // 推荐最近上车站点
@@ -172,7 +172,7 @@ watch(selectedRoute, () => {
             <div class="stops-title" v-if="!timingActive">选择上车站点</div>
             <div class="stops-title" v-else>到站请点「计时」</div>
 
-            <div v-for="(stop, idx) in routeStops" :key="stop" class="stop-row">
+            <div v-for="(stop, idx) in routeStops" :key="`${selectedRoute}-${idx}`" class="stop-row">
               <!-- 状态标记 -->
               <span class="stop-dot" :class="{
                 boarding: stopState(idx) === 0,
