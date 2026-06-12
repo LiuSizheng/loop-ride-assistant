@@ -9,7 +9,7 @@ import { formatDate, getDateType } from '@/utils/datetime'
 import { getDateLabel } from '@/utils/holidays'
 import { findNearestStop } from '@/utils/geo'
 import { getSecondsSinceMidnight } from '@/utils/datetime'
-import { arrivalCountdown } from '@/utils/countdown'
+import { arrivalCountdown, departureCountdown } from '@/utils/countdown'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import ETAIndicator from '@/components/common/ETAIndicator.vue'
 
@@ -92,12 +92,14 @@ const stopArrivals = computed(() => {
     if (!dep) continue
     if (seenDep.has(p.departureId)) continue
 
-    // 找到该车在 originStop 的到达时间
-    let originPred = null
+    // 找到该车在 originStop 的信息（始发站也用发车预测，普通站用到站预测）
+    let originPred: any = null
+    let isOriginDeparture = false
     if (hasGps && originStop && originStop !== destStop) {
       originPred = scheduleStore.predictions.find(
-        pp => pp.departureId === p.departureId && pp.stopName === originStop && !pp.isDepartureStop
+        pp => pp.departureId === p.departureId && pp.stopName === originStop
       )
+      isOriginDeparture = originPred?.isDepartureStop ?? false
     }
 
     const destSec = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
@@ -107,20 +109,22 @@ const stopArrivals = computed(() => {
       // 有定位且 origin ≠ dest：展示上车点信息
       if (!originPred) continue  // 该车不经过 originStop
       const boardSec = Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
-      if (boardSec < -120 || boardSec > 1800) continue  // 车已过站或太远
+      if (boardSec < -120 || boardSec > 1800) continue
 
-      const { label: boardLabel, status: boardStatus } = arrivalCountdown(boardSec)
-      const travelSec = destSec - boardSec
+      // 根据是否始发站选择 countdown
+      const { label: boardLabel, status: boardStatus } = isOriginDeparture
+        ? departureCountdown(boardSec)
+        : arrivalCountdown(boardSec)
+
       seenDep.add(p.departureId)
       results.push({
         departure: dep,
         originStop,
         destStop,
+        isOriginDeparture,
         boardSec,
         boardLabel,
         boardStatus,
-        destSec,
-        travelSec,
         destArrivalTime: p.arrivalTime,
       })
     } else {
@@ -181,9 +185,11 @@ const stopArrivals = computed(() => {
         </div>
         <div class="bus-card-right" v-if="(item as any).originStop">
           <div class="boarding-info">在「{{ (item as any).originStop }}」上车</div>
-          <div class="arrival-time" style="font-size:16px">{{ (item as any).destArrivalTime }} 到</div>
-          <ETAIndicator :seconds-until="(item as any).boardSec" type="arrival" />
-          <div class="travel-info">乘车约{{ Math.floor((item as any).travelSec / 60) }}分{{ (item as any).travelSec % 60 }}秒</div>
+          <ETAIndicator
+            :seconds-until="(item as any).boardSec"
+            :type="(item as any).isOriginDeparture ? 'departure' : 'arrival'"
+          />
+          <div class="dest-info">预计{{ (item as any).destArrivalTime }} 到「{{ (item as any).destStop }}」</div>
         </div>
         <div class="bus-card-right" v-else>
           <div class="arrival-time">{{ (item as any).arrivalTime }}</div>
@@ -246,6 +252,6 @@ const stopArrivals = computed(() => {
 .arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text); }
 .departure-time { font-size: 20px; font-weight: 700; color: var(--color-primary); }
 .boarding-info { font-size: 12px; color: #10B981; }
-.travel-info { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+.dest-info { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 0; color: var(--color-text-secondary); gap: 12px; }
 </style>
