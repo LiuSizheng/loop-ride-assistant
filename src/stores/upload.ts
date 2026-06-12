@@ -31,10 +31,11 @@ export const useUploadStore = defineStore('upload', () => {
   const loadingHistory = ref(false)
 
   // 计时状态
-  const startTime = ref<number | null>(null)        // 上一站出发时间 (Date.now())
-  const recordedSegments = ref<TimeSegment[]>([])     // 已记录的区间
-  const currentFromStop = ref<string>('')             // 当前"出发站"
-  const segmentSeconds = ref<number[]>([])             // 每段已记录的秒数（用于显示）
+  const boardingTime = ref<number>(0)            // 上车时刻 (Date.now())
+  const startTime = ref<number | null>(null)      // 当前段开始时刻
+  const recordedSegments = ref<TimeSegment[]>([])  // 已记录的区间
+  const currentFromStop = ref<string>('')          // 当前"出发站"
+  const segmentSeconds = ref<number[]>([])          // 每段已记录的秒数（用于显示）
   const timingActive = ref(false)
 
   function saveNickname(name: string) {
@@ -63,12 +64,13 @@ export const useUploadStore = defineStore('upload', () => {
   }
 
   /** 在指定站点上车，开始计时 */
-  function startRecordingAt(stopName: string, allStops: string[]) {
+  function startRecordingAt(stopName: string, allStops?: string[]) {
     recordedSegments.value = []
     segmentSeconds.value = []
     timingActive.value = true
     currentFromStop.value = stopName
-    startTime.value = Date.now()
+    boardingTime.value = Date.now()
+    startTime.value = boardingTime.value
   }
 
   /** 按下[计时]按钮：记录从 currentFromStop 到 targetStop 的时间 */
@@ -92,8 +94,9 @@ export const useUploadStore = defineStore('upload', () => {
     const last = recordedSegments.value.pop()!
     segmentSeconds.value.pop()
     currentFromStop.value = last.from
-    // 恢复计时起点：当前时间 - 已走过的秒数 = 这段开始时的时刻
-    startTime.value = Date.now() - last.seconds * 1000
+    // 恢复计时起点 = 上车时刻 + 之前已走过段的总秒数
+    const prevTotal = recordedSegments.value.reduce((sum, s) => sum + s.seconds, 0)
+    startTime.value = boardingTime.value + prevTotal * 1000
   }
 
   /** 重置计时状态 */
