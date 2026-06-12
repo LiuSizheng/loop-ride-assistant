@@ -69,19 +69,76 @@ function selectStop(name: string) {
   stopSearch.value = ''
 }
 
-// 到站预测
+// 当前选中站点作为目的地的车次推荐
 const stopArrivals = computed(() => {
   if (!selectedStop.value) return []
-  const preds = scheduleStore.getPredictionsForStop(selectedStop.value, dateType.value)
-  return preds.map((p) => {
-    if (p.isDepartureStop || p.isReturnStop) return null
-    const secondsAway = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
-    if (secondsAway < -120 || secondsAway > 600) return null
-    const { label, status } = arrivalCountdown(secondsAway)
-    const departure = scheduleStore.departures.find(d => d.recordId === p.departureId)
-    if (!departure) return null
-    return { ...p, departure, secondsUntil: secondsAway, label, status }
-  }).filter(Boolean).sort((a: any, b: any) => a.secondsUntil - b.secondsUntil).slice(0, 6)
+  const destStop = selectedStop.value
+  const preds = scheduleStore.getPredictionsForStop(destStop, dateType.value)
+  const results: any[] = []
+
+  // 判断是否有用户定位，用于推荐最近上车点
+  const hasGps = mapStore.userLat !== null
+  let originStop = ''
+  if (hasGps) {
+    const result = findNearestStop(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations)
+    originStop = result?.station.name ?? ''
+  }
+
+  // 收集所有经过目的地且也经过上车站的 departure
+  const seenDep = new Set<string>()  // 避免同一次发车展示多次
+  for (const p of preds) {
+    if (p.isDepartureStop || p.isReturnStop) continue
+    const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
+    if (!dep) continue
+    if (seenDep.has(p.departureId)) continue
+
+    // 找到该车在 originStop 的到达时间
+    let originPred = null
+    if (hasGps && originStop && originStop !== destStop) {
+      originPred = scheduleStore.predictions.find(
+        pp => pp.departureId === p.departureId && pp.stopName === originStop && !pp.isDepartureStop
+      )
+    }
+
+    const destSec = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
+    if (destSec < -120 || destSec > 1800) continue  // 到目的地的车已过或太远
+
+    if (hasGps && originStop && originStop !== destStop) {
+      // 有定位且 origin ≠ dest：展示上车点信息
+      if (!originPred) continue  // 该车不经过 originStop
+      const boardSec = Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
+      if (boardSec < -120 || boardSec > 1800) continue  // 车已过站或太远
+
+      const { label: boardLabel, status: boardStatus } = arrivalCountdown(boardSec)
+      const travelSec = destSec - boardSec
+      seenDep.add(p.departureId)
+      results.push({
+        departure: dep,
+        originStop,
+        destStop,
+        boardSec,
+        boardLabel,
+        boardStatus,
+        destSec,
+        travelSec,
+        destArrivalTime: p.arrivalTime,
+      })
+    } else {
+      // 无定位或 origin == dest：直接显到站信息
+      const { label, status } = arrivalCountdown(destSec)
+      seenDep.add(p.departureId)
+      results.push({
+        departure: dep,
+        destStop,
+        secondsUntil: destSec,
+        label,
+        status,
+        arrivalTime: p.arrivalTime,
+      })
+    }
+  }
+  results.sort((a: any, b: any) => (a.boardSec ?? a.secondsUntil) - (b.boardSec ?? b.secondsUntil))
+  return results.slice(0, 6)
 })
 </script>
 
@@ -117,12 +174,18 @@ const stopArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in stopArrivals" :key="`${(item as any).departureId}-${(item as any).stopName}`" class="bus-card">
+      <div v-for="item in stopArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card">
         <div class="bus-card-left">
           <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
         </div>
-        <div class="bus-card-right">
+        <div class="bus-card-right" v-if="(item as any).originStop">
+          <div class="boarding-info">在「{{ (item as any).originStop }}」上车</div>
+          <div class="arrival-time" style="font-size:16px">{{ (item as any).destArrivalTime }} 到</div>
+          <ETAIndicator :seconds-until="(item as any).boardSec" type="arrival" />
+          <div class="travel-info">乘车约{{ Math.floor((item as any).travelSec / 60) }}分{{ (item as any).travelSec % 60 }}秒</div>
+        </div>
+        <div class="bus-card-right" v-else>
           <div class="arrival-time">{{ (item as any).arrivalTime }}</div>
           <ETAIndicator :seconds-until="(item as any).secondsUntil" type="arrival" />
         </div>
@@ -182,5 +245,7 @@ const stopArrivals = computed(() => {
 .bus-card-right { text-align: right; flex-shrink: 0; }
 .arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text); }
 .departure-time { font-size: 20px; font-weight: 700; color: var(--color-primary); }
+.boarding-info { font-size: 12px; color: #10B981; }
+.travel-info { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 0; color: var(--color-text-secondary); gap: 12px; }
 </style>
