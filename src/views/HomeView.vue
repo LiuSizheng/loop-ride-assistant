@@ -140,7 +140,7 @@ const stopArrivals = computed(() => {
         <div class="bus-card-left">
           <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ item.departure.shiftName }}</span>
-          <span class="bus-stop">{{ item.departure.departureStation }}发车</span>
+          <span class="bus-from" v-if="item.departure.isGaochaoDeparture">高超楼发车</span>
         </div>
         <div class="bus-card-right">
           <div class="departure-time">{{ item.departure.departureTime }}</div>
@@ -178,7 +178,7 @@ const stopArrivals = computed(() => {
 .bus-card.departing { border-left: 3px solid var(--color-primary); }
 .bus-card-left { display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden; }
 .bus-shift { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
-.bus-stop { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bus-from { font-size: 11px; color: #F59E0B; white-space: nowrap; }
 .bus-card-right { text-align: right; flex-shrink: 0; }
 .arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text); }
 .departure-time { font-size: 20px; font-weight: 700; color: var(--color-primary); }
