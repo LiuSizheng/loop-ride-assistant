@@ -114,7 +114,7 @@ const stopArrivals = computed(() => {
       ? Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
       : Math.round(destPred.arrivalMinutes * 60 - secondsNow.value)
 
-    if (boardSec < -120 || boardSec > 1800) continue
+    if (boardSec < -60 || boardSec > 1800) continue
     if (destPred.arrivalMinutes * 60 - secondsNow.value > 1800) continue
 
     // 有定位且 origin ≠ dest 时，必须经过上车站
