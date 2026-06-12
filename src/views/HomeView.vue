@@ -88,64 +88,62 @@ const stopArrivals = computed(() => {
     originStop = result?.station.name ?? ''
   }
 
-  // 收集所有经过目的地且也经过上车站的 departure
-  const seenDep = new Set<string>()  // 避免同一次发车展示多次
+  // 收集所有经过目的地的 departureId 集合
+  const seenDep = new Set<string>()
   for (const p of preds) {
+    if (seenDep.has(p.departureId)) continue
     const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
     if (!dep) continue
-    if (seenDep.has(p.departureId)) continue
 
-    // 找到该车在 originStop 的信息（始发站也用发车预测，普通站用到站预测）
-    let originPred: any = null
-    let isOriginDeparture = false
-    if (hasGps && originStop && originStop !== destStop) {
-      originPred = scheduleStore.predictions.find(
-        pp => pp.departureId === p.departureId && pp.stopName === originStop
-      )
-      isOriginDeparture = originPred?.isDepartureStop ?? false
-    }
+    // 找到该车次在上车站的预测
+    const originPred = (hasGps && originStop && originStop !== destStop)
+      ? scheduleStore.predictions.find(
+          pp => pp.departureId === p.departureId && pp.stopName === originStop
+        )
+      : null
 
-    const destSec = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
-    if (destSec < -120 || destSec > 1800) continue  // 到目的地的车已过或太远
+    // 找到该车次在目的地且 stopSeq 大于上车站的预测（确保是同一趟车到了上车点之后才到目的地）
+    const destPred = scheduleStore.predictions.find(
+      pp => pp.departureId === p.departureId
+        && pp.stopName === destStop
+        && (!originPred || pp.stopSeq > originPred.stopSeq)
+    )
+    if (!destPred) continue
 
-    if (hasGps && originStop && originStop !== destStop) {
-      // 有定位且 origin ≠ dest：展示上车点信息
-      if (!originPred) continue  // 该车不经过 originStop
-      const boardSec = Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
-      if (boardSec < -120 || boardSec > 1800) continue
+    const boardSec = originPred
+      ? Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
+      : Math.round(destPred.arrivalMinutes * 60 - secondsNow.value)
 
-      // 确保目的地到达在上车之后（同一趟车，先到上车点再到目的地）
-      const destMinutes = p.arrivalMinutes
-      if (destMinutes <= originPred.arrivalMinutes) continue
+    if (boardSec < -120 || boardSec > 1800) continue
+    if (destPred.arrivalMinutes * 60 - secondsNow.value > 1800) continue
 
-      // 根据是否始发站选择 countdown
-      const { label: boardLabel, status: boardStatus } = isOriginDeparture
+    seenDep.add(p.departureId)
+
+    if (hasGps && originStop && originStop !== destStop && originPred) {
+      const isOriginDeparture = originPred.isDepartureStop ?? false
+      const { label, status } = isOriginDeparture
         ? departureCountdown(boardSec)
         : arrivalCountdown(boardSec)
-
-      seenDep.add(p.departureId)
       results.push({
         departure: dep,
         originStop,
         destStop,
         isOriginDeparture,
         boardSec,
-        boardLabel,
-        boardStatus,
+        boardLabel: label,
+        boardStatus: status,
         boardTime: originPred.arrivalTime,
-        destArrivalTime: p.arrivalTime,
+        destArrivalTime: destPred.arrivalTime,
       })
     } else {
-      // 无定位或 origin == dest：直接显到站信息
-      const { label, status } = arrivalCountdown(destSec)
-      seenDep.add(p.departureId)
+      const { label, status } = arrivalCountdown(boardSec)
       results.push({
         departure: dep,
         destStop,
-        secondsUntil: destSec,
+        secondsUntil: boardSec,
         label,
         status,
-        arrivalTime: p.arrivalTime,
+        arrivalTime: destPred.arrivalTime,
       })
     }
   }
