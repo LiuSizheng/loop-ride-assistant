@@ -19,12 +19,90 @@ const mapLoading = ref(true)
 const mapError = ref<string | null>(null)
 let mapInstance: any = null
 let stopMarkers: any[] = []
-let busMarkers: any[] = []
 let routePolylines: any[] = []
 let userMarker: any = null
-let positionInterval: ReturnType<typeof setInterval> | null = null
+let userMarkerInterval: ReturnType<typeof setInterval> | null = null
 
-// 在地图上显示所有站点
+// ---- 路线颜色 ----
+const ROUTE_COLORS: Record<string, string> = {
+  HX1_NORMAL: '#2563EB',
+  HX1_DINING: '#F59E0B',
+  HX2_NORMAL: '#10B981',
+  HX3_NORMAL: '#8B5CF6',
+  HX3_GAOCHAO: '#7C3AED',
+}
+
+function getRouteColor(routeKey: string): string {
+  return ROUTE_COLORS[routeKey] || '#6B7280'
+}
+
+// ---- 班次数字提取 ----
+const CN_NUM_MAP: Record<string, number> = {
+  '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
+  '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
+}
+
+function extractShiftNumber(shiftName: string): number | null {
+  for (const [cn, n] of Object.entries(CN_NUM_MAP)) {
+    if (shiftName.includes(cn)) return n
+  }
+  return null
+}
+
+// ---- 公交车图标 HTML ----
+function createBusIconContent(routeKey: string, shiftName: string, heading: number): string {
+  const color = getRouteColor(routeKey)
+  const shiftNum = extractShiftNumber(shiftName)
+  const isBus = routeKey.includes('HX1')
+  const bodyW = isBus ? 36 : 28
+  const bodyH = isBus ? 20 : 18
+  const containerW = bodyW + 10
+  const containerH = bodyH + 8
+
+  const badgeHtml = shiftNum !== null ? `
+    <div style="
+      position:absolute;top:-7px;right:-7px;
+      width:16px;height:16px;
+      background:#DC2626;border-radius:50%;
+      color:#fff;font-size:10px;font-weight:700;
+      display:flex;align-items:center;justify-content:center;
+      line-height:1;border:1.5px solid #fff;
+    ">${shiftNum}</div>` : ''
+
+  return `<div style="
+    width:${containerW}px;height:${containerH}px;
+    position:relative;
+    transform:rotate(${heading}deg);
+  ">
+    <div style="
+      width:${bodyW}px;height:${bodyH}px;
+      background:${color};
+      border-radius:5px;
+      position:absolute;left:0;top:0;
+      box-shadow:0 2px 4px rgba(0,0,0,0.25);
+    "></div>
+    <div style="
+      position:absolute;bottom:-2px;left:${isBus ? 6 : 4}px;
+      width:6px;height:6px;background:#1F2937;border-radius:50%;
+      box-shadow:inset 0 1px 1px rgba(255,255,255,0.3);
+    "></div>
+    <div style="
+      position:absolute;bottom:-2px;right:${isBus ? 10 : 7}px;
+      width:6px;height:6px;background:#1F2937;border-radius:50%;
+      box-shadow:inset 0 1px 1px rgba(255,255,255,0.3);
+    "></div>
+    ${badgeHtml}
+  </div>`
+}
+
+function getBusMarkerOffset(routeKey: string): [number, number] {
+  const isBus = routeKey.includes('HX1')
+  const bodyW = isBus ? 36 : 28
+  const bodyH = isBus ? 20 : 18
+  return [-(bodyW + 10) / 2, -(bodyH + 8) / 2]
+}
+
+// ---- 站点渲染 ----
 function renderStops() {
   if (!mapInstance) return
   stopMarkers.forEach((m) => m.remove())
@@ -32,36 +110,23 @@ function renderStops() {
   routePolylines.forEach((p) => p.remove())
   routePolylines = []
 
-  const routeColors: Record<string, string> = {
-    HX1_NORMAL: '#2563EB',
-    HX1_DINING: '#F59E0B',
-    HX2_NORMAL: '#10B981',
-    HX3_NORMAL: '#8B5CF6',
-    HX3_GAOCHAO: '#7C3AED',
-  }
-
-  // 为每条路线绘制折线（优先使用途经点细化路径）
+  // 为每条路线绘制折线
   for (const pattern of scheduleStore.routePatterns) {
     if (!mapStore.visibleRoutes.has(pattern.routeKey)) continue
 
     let path: [number, number][]
-
-    // Use detailed waypoint path if available
     if (scheduleStore.routePaths[pattern.routeKey]) {
       path = scheduleStore.routePaths[pattern.routeKey]
     } else {
-      // Fallback: simple stop-to-stop lines
       path = []
       for (const stop of pattern.stops) {
         const station = scheduleStore.stations.find((s) => s.name === stop.currentStop)
-        if (station) {
-          path.push([station.lng, station.lat])
-        }
+        if (station) path.push([station.lng, station.lat])
       }
     }
 
     if (path.length > 1) {
-      const color = routeColors[pattern.routeKey] || '#999'
+      const color = getRouteColor(pattern.routeKey)
       const polyline = new (window as any).AMap.Polyline({
         path,
         strokeColor: color,
@@ -75,16 +140,8 @@ function renderStops() {
     }
   }
 
-  // 为每条可见路线，按路线专属坐标显示站点标记
-  const routeColorMap: Record<string, string> = {
-    HX1_NORMAL: '#2563EB',
-    HX1_DINING: '#F59E0B',
-    HX2_NORMAL: '#10B981',
-    HX3_NORMAL: '#8B5CF6',
-    HX3_GAOCHAO: '#8B5CF6',
-  }
-
-  const shownStops = new Set<string>()  // dedup: "routeKey|stopName"
+  // 站点标记
+  const shownStops = new Set<string>()
 
   for (const pattern of scheduleStore.routePatterns) {
     const rk = pattern.routeKey
@@ -93,7 +150,7 @@ function renderStops() {
     const stops = scheduleStore.routeStops[rk]
     if (!stops) continue
 
-    const color = routeColorMap[rk] || '#6B7280'
+    const color = getRouteColor(rk)
 
     for (const stop of stops) {
       const dedupKey = `${rk}|${stop.name}`
@@ -116,15 +173,10 @@ function renderStops() {
         ...(mapStore.showLabels ? {
           label: {
             content: `<div style="
-              background:${color};
-              color:#fff;
-              padding:2px 6px;
-              border-radius:10px;
-              font-size:11px;
-              white-space:nowrap;
-              box-shadow:0 1px 3px rgba(0,0,0,0.3);
+              color:#1F2937;font-size:11px;font-weight:500;white-space:nowrap;
+              text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;
             ">${stop.name}</div>`,
-            offset: new (window as any).AMap.Pixel(0, -22),
+            offset: new (window as any).AMap.Pixel(0, -20),
           },
         } : {}),
         zIndex: 50,
@@ -140,13 +192,19 @@ function renderStops() {
   }
 }
 
-// 更新公交车位置
-function updateBusPositions() {
-  if (!mapInstance) return
-  busMarkers.forEach((m) => m.remove())
-  busMarkers = []
+// ---- 平滑公交车动画 ----
+const busMarkerMap = new Map<string, any>()
+const lastHeadingMap = new Map<string, number>()
+let animFrameId: number | null = null
 
-  const dateType = getDateType()
+function animateBusPositions() {
+  if (!mapInstance) {
+    animFrameId = requestAnimationFrame(animateBusPositions)
+    return
+  }
+
+  const currentDate = mapStore.simulatedDate
+  const dateType = getDateType(currentDate)
   const deps = scheduleStore.getDepartures(dateType)
   const patternMap = new Map(
     scheduleStore.routePatterns.map((rp) => [rp.routeKey, rp])
@@ -154,39 +212,57 @@ function updateBusPositions() {
   const positions = computeActiveBusPositions(
     deps,
     patternMap,
-    scheduleStore.stations
+    scheduleStore.stations,
+    currentDate
   )
-  mapStore.setBusPositions(positions)
 
-  for (const pos of positions) {
-    const color = pos.routeKey === 'HX1_DINING' ? '#F59E0B'
-      : pos.routeKey?.includes('HX1') ? '#2563EB'
-      : pos.routeKey?.includes('HX2') ? '#10B981'
-      : '#8B5CF6'
+  // 按路线可见性筛选
+  const visiblePositions = positions.filter((p) =>
+    mapStore.visibleRoutes.has(p.routeKey)
+  )
+  mapStore.setBusPositions(visiblePositions)
 
-    const content = `<div style="
-      width:24px;height:24px;
-      background:${color};
-      border:2px solid #fff;
-      border-radius:50%;
-      box-shadow:0 2px 6px rgba(0,0,0,0.3);
-      display:flex;align-items:center;justify-content:center;
-      font-size:10px;color:#fff;
-      transform:rotate(${pos.heading}deg);
-    ">🚌</div>`
+  const activeIds = new Set(visiblePositions.map((p) => p.departureId))
 
-    const marker = new (window as any).AMap.Marker({
-      position: [pos.lng, pos.lat],
-      content,
-      offset: new (window as any).AMap.Pixel(-12, -12),
-      zIndex: 80,
-    })
-    marker.setMap(mapInstance)
-    busMarkers.push(marker)
+  // 移除不再活跃的标记
+  for (const [id, marker] of busMarkerMap) {
+    if (!activeIds.has(id)) {
+      marker.remove()
+      busMarkerMap.delete(id)
+      lastHeadingMap.delete(id)
+    }
   }
+
+  // 更新已有标记 / 创建新标记
+  for (const pos of visiblePositions) {
+    const existing = busMarkerMap.get(pos.departureId)
+    if (existing) {
+      existing.setPosition([pos.lng, pos.lat])
+      // 仅在 heading 变化 >10° 时更新图标方向
+      const prevH = lastHeadingMap.get(pos.departureId) ?? -999
+      if (Math.abs(pos.heading - prevH) > 10) {
+        existing.setContent(createBusIconContent(pos.routeKey, pos.shiftName, pos.heading))
+        lastHeadingMap.set(pos.departureId, pos.heading)
+      }
+    } else {
+      const content = createBusIconContent(pos.routeKey, pos.shiftName, pos.heading)
+      const offset = getBusMarkerOffset(pos.routeKey)
+      const marker = new (window as any).AMap.Marker({
+        position: [pos.lng, pos.lat],
+        content,
+        offset: new (window as any).AMap.Pixel(offset[0], offset[1]),
+        zIndex: 80,
+      })
+      marker.setMap(mapInstance)
+      busMarkerMap.set(pos.departureId, marker)
+      lastHeadingMap.set(pos.departureId, pos.heading)
+    }
+  }
+
+  animFrameId = requestAnimationFrame(animateBusPositions)
 }
 
-// 更新用户位置标记
+// ---- 用户位置标记 ----
 function updateUserMarker() {
   if (!mapInstance || mapStore.userLat === null || mapStore.userLng === null) {
     if (userMarker) {
@@ -215,20 +291,12 @@ function updateUserMarker() {
   }
 }
 
-// 定时更新
-function startPositionUpdates() {
-  positionInterval = setInterval(() => {
-    updateBusPositions()
-    updateUserMarker()
-  }, 5000)
-}
-
+// ---- 生命周期 ----
 onMounted(async () => {
   try {
     await loadAMap()
     if (!mapContainer.value) return
 
-    // 提前计算校园边界，避免地图先在错误位置闪现再跳转
     let initCenter: [number, number] = [113.042, 28.263]
     let initZoom = 15
     if (scheduleStore.stations.length > 0) {
@@ -244,8 +312,8 @@ onMounted(async () => {
     })
 
     renderStops()
-    updateBusPositions()
-    startPositionUpdates()
+    animFrameId = requestAnimationFrame(animateBusPositions)
+    userMarkerInterval = setInterval(updateUserMarker, 5000)
     mapLoading.value = false
   } catch (e: any) {
     mapError.value = e.message || '地图加载失败'
@@ -254,17 +322,19 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  if (positionInterval) clearInterval(positionInterval)
+  if (animFrameId) cancelAnimationFrame(animFrameId)
+  if (userMarkerInterval) clearInterval(userMarkerInterval)
+  for (const marker of busMarkerMap.values()) marker.remove()
+  busMarkerMap.clear()
   if (mapInstance) {
     mapInstance.destroy()
     mapInstance = null
   }
 })
 
-// 当路线可见性变化时重新渲染
+// 当路线可见性变化时重新渲染站点和折线（公交车由动画循环自动筛选）
 watch(() => mapStore.visibleRoutes, () => {
   renderStops()
-  updateBusPositions()
 }, { deep: true })
 
 // 当站点标签可见性变化时重新渲染
@@ -279,6 +349,21 @@ function recenterOnUser() {
     mapInstance.setCenter([mapStore.userLng, mapStore.userLat])
     mapInstance.setZoom(16)
   }
+}
+
+// 时间模拟
+const timePresets = [
+  { label: '实时', minutes: null },
+  { label: '07:30', minutes: 7 * 60 + 30 },
+  { label: '08:00', minutes: 8 * 60 },
+  { label: '09:00', minutes: 9 * 60 },
+  { label: '11:30', minutes: 11 * 60 + 30 },
+  { label: '14:00', minutes: 14 * 60 },
+  { label: '17:00', minutes: 17 * 60 },
+]
+
+function setTimePreset(minutes: number | null) {
+  mapStore.setSimulatedTime(minutes)
 }
 </script>
 
@@ -301,6 +386,22 @@ function recenterOnUser() {
 
     <!-- 地图容器 -->
     <div ref="mapContainer" class="map-container" />
+
+    <!-- 时间模拟面板 -->
+    <div class="time-panel">
+      <div class="time-panel-label">
+        {{ mapStore.simulatedMinutes !== null ? '模拟时间' : '实时' }}
+      </div>
+      <div class="time-presets">
+        <span
+          v-for="preset in timePresets"
+          :key="preset.label"
+          class="time-preset-btn"
+          :class="{ active: mapStore.simulatedMinutes === preset.minutes }"
+          @click="setTimePreset(preset.minutes)"
+        >{{ preset.label }}</span>
+      </div>
+    </div>
 
     <!-- 图例 -->
     <MapLegend />
@@ -377,5 +478,45 @@ function recenterOnUser() {
 }
 .locate-btn:active {
   background: #F3F4F6;
+}
+
+.time-panel {
+  position: absolute;
+  bottom: 60px;
+  left: 12px;
+  z-index: 60;
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+.time-panel-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+  text-align: center;
+}
+.time-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.time-preset-btn {
+  padding: 2px 8px;
+  background: #F3F4F6;
+  border-radius: 12px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--color-text);
+  white-space: nowrap;
+  user-select: none;
+  transition: background 0.15s;
+}
+.time-preset-btn.active {
+  background: var(--color-primary);
+  color: #fff;
+}
+.time-preset-btn:active {
+  background: #E5E7EB;
 }
 </style>

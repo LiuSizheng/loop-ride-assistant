@@ -116,7 +116,7 @@ watch(selectedRoute, (r) => {
             <div class="dep-left">
               <RouteBadge :route="dep.route" :dining="isDining(dep)" />
               <span class="dep-time">{{ dep.departureTime }}</span>
-              <span class="dep-station">{{ dep.departureStation }}发车</span>
+              <span class="dep-station" v-if="dep.isGaochaoDeparture">高超楼发车</span>
             </div>
             <div class="dep-right">
               <span v-if="dep.confidence === 'speculative'" class="tag-spec">
@@ -216,10 +216,7 @@ watch(selectedRoute, (r) => {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.dep-station {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
+.dep-station { font-size: 11px; color: #F59E0B; white-space: nowrap; }
 .dep-right {
   display: flex;
   align-items: center;
