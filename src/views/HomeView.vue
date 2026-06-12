@@ -84,12 +84,10 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
     <!-- 今日状态 -->
     <div class="today-header">
       <div class="today-left">
-        <div class="date-text">
-          {{ todayDate }}
-          <template v-if="weather">
-            <span class="weather-icon">{{ weather.icon }}</span>
-            <span class="weather-text">{{ weather.tempNow }}° {{ weather.tempMin }}°~{{ weather.tempMax }}°</span>
-          </template>
+        <div class="date-text">{{ todayDate }}</div>
+        <div v-if="weather" class="weather-row">
+          <span class="weather-icon">{{ weather.icon }}</span>
+          <span class="weather-text">{{ weather.tempNow }}° {{ weather.tempMin }}°~{{ weather.tempMax }}°</span>
         </div>
       </div>
       <van-tag :type="isWeekday ? 'primary' : 'warning'" size="large" round>{{ dateTypeLabel }}</van-tag>
