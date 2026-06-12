@@ -140,6 +140,8 @@ const stopArrivals = computed(() => {
         destArrivalTime: destPred.arrivalTime,
       })
     } else {
+      // 直接显示目的地到站信息：排除始发站（这些在「即将发车」中体现）
+      if (destPred.isDepartureStop || destPred.isReturnStop) continue
       const { label, status } = arrivalCountdown(boardSec)
       results.push({
         departure: dep,
