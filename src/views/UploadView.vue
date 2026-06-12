@@ -134,6 +134,18 @@ async function handleSubmit() {
   }
 }
 
+async function handleUndo() {
+  try {
+    await showConfirmDialog({
+      title: '确认回退',
+      message: '撤销刚才的计时记录？回退后计时不会重置。',
+      confirmButtonText: '确认回退',
+      cancelButtonText: '取消',
+    })
+  } catch { return }
+  uploadStore.undoLastSegment()
+}
+
 // 加载历史
 watch(tabActive, (v) => {
   if (v === 1) uploadStore.loadHistory()
@@ -193,7 +205,15 @@ watch(selectedRoute, () => {
               <span class="stop-name" :class="{ bold: stopState(idx) === 0 }">{{ stop }}</span>
 
               <!-- 已记录段的时间显示（在对应站的右侧） -->
-              <span v-if="stopState(idx) === 2" class="seg-secs">{{ getSegmentSeconds(idx) }}</span>
+              <span v-if="stopState(idx) === 2" class="seg-secs">
+                {{ getSegmentSeconds(idx) }}
+                <van-button
+                  v-if="idx === boardIdx + recordedCount"
+                  size="mini" type="danger" plain
+                  style="margin-left:6px;padding:0 6px;font-size:11px"
+                  @click="handleUndo"
+                >回退</van-button>
+              </span>
 
               <!-- 上车按钮 -->
               <van-button

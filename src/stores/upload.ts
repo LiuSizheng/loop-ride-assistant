@@ -86,6 +86,16 @@ export const useUploadStore = defineStore('upload', () => {
     startTime.value = Date.now()  // 下一段开始计时
   }
 
+  /** 撤销最后一次计时：回退到上一站，恢复计时起点 */
+  function undoLastSegment() {
+    if (recordedSegments.value.length === 0) return
+    const last = recordedSegments.value.pop()!
+    segmentSeconds.value.pop()
+    currentFromStop.value = last.from
+    // 恢复计时起点：当前时间 - 已走过的秒数 = 这段开始时的时刻
+    startTime.value = Date.now() - last.seconds * 1000
+  }
+
   /** 重置计时状态 */
   function resetRecording() {
     startTime.value = null
@@ -178,6 +188,7 @@ export const useUploadStore = defineStore('upload', () => {
     startRecording,
     startRecordingAt,
     recordSegment,
+    undoLastSegment,
     resetRecording,
     submit,
     loadHistory,
