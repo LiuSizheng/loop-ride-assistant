@@ -87,7 +87,6 @@ const stopArrivals = computed(() => {
   // 收集所有经过目的地且也经过上车站的 departure
   const seenDep = new Set<string>()  // 避免同一次发车展示多次
   for (const p of preds) {
-    if (p.isDepartureStop || p.isReturnStop) continue
     const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
     if (!dep) continue
     if (seenDep.has(p.departureId)) continue
