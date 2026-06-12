@@ -64,6 +64,10 @@ watch(nearestStop, (stop) => {
 }, { immediate: true })
 
 function selectStop(name: string) {
+  if (selectedStop.value === name) {
+    selectedStop.value = nearestStop.value?.name ?? null
+    return
+  }
   recordClick(name)
   selectedStop.value = name
   stopSearch.value = ''
