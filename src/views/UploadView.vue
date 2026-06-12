@@ -14,42 +14,44 @@ useGeolocation()
 
 const tabActive = ref(0)
 const nickInput = ref(uploadStore.nickname)
-
-// 表单
 const selectedRoute = ref('环线1路')
-const vehicleNo = ref('')
-const dateStr = ref(new Date().toISOString().slice(0, 10))
-
-// 线路选项
-const routeOptions = ['环线1路', '环线2路', '环线3路', '就餐专线']
 
 // routeKey 映射
 const routeToKey: Record<string, string> = {
   '环线1路': 'HX1_NORMAL', '环线2路': 'HX2_NORMAL', '环线3路': 'HX3_NORMAL', '就餐专线': 'HX1_DINING'
 }
+const routeOptions = ['环线1路', '环线2路', '环线3路', '就餐专线']
 
-// 当前路线的站点序列
+// 当前路线的完整站点序列（含终点站）
 const routeStops = computed(() => {
   const rk = routeToKey[selectedRoute.value]
   const rp = scheduleStore.routePatterns.find(p => p.routeKey === rk)
   if (!rp) return []
-  return rp.stops.filter(s => !s.isReturnStop).map(s => s.currentStop)
+  // 保留所有站点，包括终点（归位站）
+  return rp.stops.map(s => s.currentStop)
 })
 
 // 推荐最近上车站点
 const nearestRouteStop = computed(() => {
   if (mapStore.userLat === null || mapStore.userLng === null) return null
-  // 只从当前路线的站点中找
-  const routeStopNames = new Set(routeStops.value)
+  const routeStopNames = new Set(routeStops.value.slice(0, -1)) // 排除终点站
   const routeStations = scheduleStore.stations.filter(s => routeStopNames.has(s.name))
   const result = findNearestStop(mapStore.userLat, mapStore.userLng, routeStations)
   return result?.station.name ?? null
 })
 
-// 已完成的段数
+// boardIdx = 上车站在 routeStops 中的索引
+// recordedCount = 已经按过计时按钮的次数
+const boardIdx = ref(-1)
 const recordedCount = computed(() => uploadStore.recordedSegments.length)
-// 当前应该记录第几站（0 = 还没上车，>= 1 = 正在计时）
-const currentStopIdx = computed(() => uploadStore.recordedSegments.length)
+const timingActive = computed(() => boardIdx.value >= 0)
+
+// 到达终点站（全部段都记录完）
+const allRecorded = computed(() => {
+  if (boardIdx.value < 0) return false
+  const totalSegments = routeStops.value.length - 1 - boardIdx.value
+  return recordedCount.value >= totalSegments
+})
 
 const canSubmit = computed(() =>
   !!uploadStore.nickname && recordedCount.value > 0 && !uploadStore.uploading
@@ -59,38 +61,49 @@ function saveNick() {
   uploadStore.saveNickname(nickInput.value)
 }
 
-// 选择上车站点 → 开始计时
+// 上车
 function boardAt(stopName: string) {
-  if (uploadStore.timingActive) return
-  uploadStore.startRecordingAt(stopName, routeStops.value)
+  const idx = routeStops.value.indexOf(stopName)
+  if (idx < 0 || idx >= routeStops.value.length - 1) return // 终点站不能上车
+  boardIdx.value = idx
+  uploadStore.startRecordingAt(stopName, selectedRoute.value)
   showSuccessToast(`已上车：${stopName}`)
 }
 
 // 按顺序记录到站
 function tapStop(stopName: string) {
-  if (!uploadStore.timingActive) return
+  if (!timingActive.value) return
   const idx = routeStops.value.indexOf(stopName)
-  if (idx <= currentStopIdx.value) return // 已经过了
-  if (idx !== currentStopIdx.value + 1) {
+  // 必须是 boardIdx + recordedCount + 1（下一站）
+  if (idx !== boardIdx.value + recordedCount.value + 1) {
     showFailToast('请按站点顺序依次记录')
     return
   }
   uploadStore.recordSegment(stopName)
 }
 
-function isStopRecorded(idx: number): boolean {
-  return idx > currentStopIdx.value && idx <= recordedCount.value + currentStopIdx.value
+// 判断各站的状态
+// -1: 还没到（不显示按钮或显示"上车"）
+//  0: 上车点（显示"上"）
+//  1: 当前要点的站（显示"计时"）
+//  2: 已记录（显示✓ + 秒数）
+function stopState(idx: number): number {
+  if (!timingActive.value) {
+    // 未上车：终点站无按钮，其他显示上车
+    return idx >= routeStops.value.length - 1 ? -1 : -1
+  }
+  if (idx === boardIdx.value) return 0 // 上车站
+  if (idx < boardIdx.value) return -1 // 上车之前的站
+  const segIdx = idx - boardIdx.value - 1 // 这是第几段
+  if (segIdx < recordedCount.value) return 2 // 已记录
+  if (segIdx === recordedCount.value) return 1 // 当前要记录
+  return -1 // 还没到
 }
+
 function getSegmentSeconds(idx: number): string {
-  const segIdx = idx - currentStopIdx.value - 1
+  const segIdx = idx - boardIdx.value - 1
   if (segIdx < 0 || segIdx >= uploadStore.segmentSeconds.length) return ''
   return `${uploadStore.segmentSeconds[segIdx]}秒`
-}
-function isBoardingStop(idx: number): boolean {
-  return idx === currentStopIdx.value && uploadStore.timingActive
-}
-function isCurrentStop(idx: number): boolean {
-  return idx === currentStopIdx.value + 1 && uploadStore.timingActive
 }
 
 async function handleSubmit() {
@@ -105,11 +118,11 @@ async function handleSubmit() {
     route: selectedRoute.value,
     shift: '',
     departTime: '',
-    vehicleNo: vehicleNo.value || undefined,
-    date: dateStr.value,
+    date: new Date().toISOString().slice(0, 10),
   })
   if (ok) {
     showSuccessToast('提交成功！')
+    boardIdx.value = -1
   } else {
     showFailToast('提交失败，请重试')
   }
@@ -122,7 +135,10 @@ watch(tabActive, (v) => {
 onMounted(() => {
   if (tabActive.value === 1) uploadStore.loadHistory()
 })
-watch(selectedRoute, () => { uploadStore.resetRecording() })
+watch(selectedRoute, () => {
+  boardIdx.value = -1
+  uploadStore.resetRecording()
+})
 </script>
 
 <template>
@@ -145,59 +161,59 @@ watch(selectedRoute, () => { uploadStore.resetRecording() })
             </van-radio-group>
           </div>
 
-          <!-- 车号/日期 -->
-          <div class="field-row">
-            <span class="label">车号</span>
-            <input v-model="vehicleNo" placeholder="选填" class="text-input" />
-            <span class="label" style="margin-left:12px">日期</span>
-            <input type="date" v-model="dateStr" class="text-input" />
-          </div>
-
           <!-- 站点 + 计时 -->
           <div v-if="routeStops.length" class="stops-section">
-            <!-- 推荐上车：定位最近站点 -->
-            <div v-if="nearestRouteStop && !uploadStore.timingActive" class="nearest-card" @click="boardAt(nearestRouteStop)">
+            <!-- 推荐上车 -->
+            <div v-if="nearestRouteStop && !timingActive" class="nearest-card" @click="boardAt(nearestRouteStop)">
               <van-icon name="location-o" />
               <span>距你最近「{{ nearestRouteStop }}」，点此一键上车</span>
             </div>
 
-            <div class="stops-title" v-if="!uploadStore.timingActive">或者手动选择上车站点</div>
+            <div class="stops-title" v-if="!timingActive">选择上车站点</div>
             <div class="stops-title" v-else>到站请点「计时」</div>
 
             <div v-for="(stop, idx) in routeStops" :key="stop" class="stop-row">
+              <!-- 状态标记 -->
               <span class="stop-dot" :class="{
-                done: isStopRecorded(idx),
-                boarding: isBoardingStop(idx),
-                current: isCurrentStop(idx)
-              }">{{ isBoardingStop(idx) ? '上' : isStopRecorded(idx) ? '✓' : idx + 1 }}</span>
-              <span class="stop-name" :class="{ bold: isBoardingStop(idx) }">{{ stop }}</span>
-              <span v-if="isStopRecorded(idx)" class="seg-secs">{{ getSegmentSeconds(idx) }}</span>
+                boarding: stopState(idx) === 0,
+                current: stopState(idx) === 1,
+                done: stopState(idx) === 2,
+              }">
+                <template v-if="stopState(idx) === 0">上</template>
+                <template v-else-if="stopState(idx) === 2">✓</template>
+                <template v-else>{{ idx + 1 }}</template>
+              </span>
+
+              <span class="stop-name" :class="{ bold: stopState(idx) === 0 }">{{ stop }}</span>
+
+              <!-- 已记录段的时间显示（在对应站的右侧） -->
+              <span v-if="stopState(idx) === 2" class="seg-secs">{{ getSegmentSeconds(idx) }}</span>
+
+              <!-- 上车按钮 -->
               <van-button
-                v-if="!uploadStore.timingActive"
-                size="small"
-                type="primary"
-                round
-                @click="boardAt(stop)"
+                v-if="!timingActive && idx < routeStops.length - 1"
+                size="small" type="primary" round @click="boardAt(stop)"
               >上车</van-button>
+
+              <!-- 计时按钮 -->
               <van-button
-                v-if="isCurrentStop(idx)"
-                size="small"
-                type="warning"
-                round
-                @click="tapStop(stop)"
+                v-if="stopState(idx) === 1"
+                size="small" type="warning" round @click="tapStop(stop)"
               >计时</van-button>
+
+              <!-- 到达终点站（最后一站计时后） -->
+              <span v-if="idx === routeStops.length - 1 && stopState(idx) === 2" class="seg-secs">{{ getSegmentSeconds(idx) }}</span>
             </div>
 
             <!-- 提交 -->
-            <div v-if="uploadStore.timingActive && recordedCount > 0" style="margin-top:16px">
+            <div v-if="timingActive && recordedCount > 0" style="margin-top:16px">
               <van-button
-                type="success"
-                block
-                round
+                type="success" block round
                 :disabled="!canSubmit"
                 :loading="uploadStore.uploading"
                 @click="handleSubmit"
-              >{{ `已记录 ${recordedCount} 段，提交` }}</van-button>
+              >{{ allRecorded ? '到达终点，提交记录' : `已记录 ${recordedCount} 段，提交` }}</van-button>
+              <div v-if="!uploadStore.nickname" class="hint">请先输入昵称</div>
             </div>
           </div>
         </div>
@@ -235,10 +251,7 @@ watch(selectedRoute, () => { uploadStore.resetRecording() })
 .nick-input:focus { border-color: var(--color-primary); }
 
 .field-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 14px; flex-wrap: wrap; }
-.label { color: var(--color-text-secondary); white-space: nowrap; min-width: 36px; }
-.text-input { border: 1px solid var(--color-border); border-radius: 6px; padding: 4px 8px; font-size: 13px; width: 80px; outline: none; }
-.text-input:focus { border-color: var(--color-primary); }
-.hint { color: var(--color-text-secondary); font-size: 13px; }
+.label { color: var(--color-text-secondary); white-space: nowrap; }
 
 .stops-section { margin-top: 12px; }
 .stops-title { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
@@ -252,12 +265,13 @@ watch(selectedRoute, () => { uploadStore.resetRecording() })
 
 .stop-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #F3F4F6; }
 .stop-dot { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; background: #E5E7EB; color: #6B7280; flex-shrink: 0; }
-.stop-dot.done { background: #10B981; color: #fff; }
 .stop-dot.boarding { background: var(--color-primary); color: #fff; font-size: 10px; }
-.stop-dot.current { background: #F59E0B; color: #fff; }
+.stop-dot.current { background: #F59E0B; color: #fff; font-weight: 600; }
+.stop-dot.done { background: #10B981; color: #fff; }
 .stop-name { flex: 1; font-size: 14px; }
 .stop-name.bold { font-weight: 600; }
 .seg-secs { font-size: 13px; color: #10B981; font-weight: 600; min-width: 40px; text-align: right; }
+.hint { color: var(--color-text-secondary); font-size: 13px; }
 
 .history-section { padding: 16px; }
 .history-card { background: var(--color-card); border-radius: 10px; padding: 12px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }

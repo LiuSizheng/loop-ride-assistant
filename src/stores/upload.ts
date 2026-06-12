@@ -100,8 +100,6 @@ export const useUploadStore = defineStore('upload', () => {
     route: string
     shift: string
     departTime: string
-    vehicleNo?: string
-    driver?: string
     date: string
   }): Promise<boolean> {
     if (!nickname.value || recordedSegments.value.length === 0) return false
@@ -114,8 +112,6 @@ export const useUploadStore = defineStore('upload', () => {
         route: params.route,
         shift: params.shift,
         depart_time: params.departTime,
-        vehicle_no: params.vehicleNo || null,
-        driver: params.driver || null,
         date: params.date,
         segments: recordedSegments.value,
       })
