@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 interface WeatherInfo {
   icon: string
   desc: string
+  tempNow: number
   tempMax: number
   tempMin: number
 }
@@ -11,7 +12,7 @@ const weather = ref<WeatherInfo | null>(null)
 const loading = ref(false)
 
 // WMO Weather codes → emoji + description
-function weatherCodeToInfo(code: number): WeatherInfo {
+function weatherCodeToInfo(code: number): { icon: string; desc: string } {
   const map: Record<number, [string, string]> = {
     0: ['☀️', '晴'],
     1: ['🌤️', '大部晴'],
@@ -43,7 +44,7 @@ function weatherCodeToInfo(code: number): WeatherInfo {
     99: ['⛈️', '雷暴+大冰雹'],
   }
   const [icon, desc] = map[code] || ['🌤️', '未知']
-  return { icon, desc, tempMax: 0, tempMin: 0 }
+  return { icon, desc }
 }
 
 export function useWeather() {
@@ -54,17 +55,19 @@ export function useWeather() {
       // 研究生宿舍楼坐标
       const lat = 28.258
       const lng = 113.046
-      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,weathercode&timezone=Asia%2FShanghai&forecast_days=1`
+      // current_weather: 当前温度和即时天气 | daily: 全天最高最低温
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current_weather=true&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FShanghai&forecast_days=1`
       const resp = await fetch(url)
       if (!resp.ok) return
       const data = await resp.json()
-      const code = data.daily?.weathercode?.[0]
+      const cur = data.current_weather
       const tmax = data.daily?.temperature_2m_max?.[0]
       const tmin = data.daily?.temperature_2m_min?.[0]
-      if (code === undefined || tmax === undefined || tmin === undefined) return
+      if (!cur || tmax === undefined || tmin === undefined) return
 
       weather.value = {
-        ...weatherCodeToInfo(code),
+        ...weatherCodeToInfo(cur.weathercode),
+        tempNow: Math.round(cur.temperature),
         tempMax: Math.round(tmax),
         tempMin: Math.round(tmin),
       }

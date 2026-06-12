@@ -88,7 +88,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
           {{ todayDate }}
           <template v-if="weather">
             <span class="weather-icon">{{ weather.icon }}</span>
-            <span class="weather-text">{{ weather.tempMin }}° ~ {{ weather.tempMax }}°</span>
+            <span class="weather-text">{{ weather.tempNow }}° {{ weather.tempMin }}°~{{ weather.tempMax }}°</span>
           </template>
         </div>
       </div>
