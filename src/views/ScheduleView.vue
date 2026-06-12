@@ -27,10 +27,17 @@ const groupedDepartures = computed(() => {
     groups.get(dep.shiftName)!.push(dep)
   }
   // 按班次名中的数字排序（第一班=1, 第二班=2...）
+  // 中文数字映射
+  const cnNum: Record<string, number> = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10 }
+  function shiftOrder(name: string): number {
+    // 尝试从中文名提取数字：第一班→1, 第四班（夜1）→4
+    for (const [cn, n] of Object.entries(cnNum)) {
+      if (name.includes(cn)) return n
+    }
+    return 0
+  }
   const sorted = new Map([...groups.entries()].sort((a, b) => {
-    const na = Number(a[0].match(/(\d+)/)?.[1] || 0)
-    const nb = Number(b[0].match(/(\d+)/)?.[1] || 0)
-    return na - nb
+    return shiftOrder(a[0]) - shiftOrder(b[0])
   }))
   return sorted
 })
