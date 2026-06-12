@@ -16,6 +16,12 @@ const tabActive = ref(0)
 const nickInput = ref(uploadStore.nickname)
 const selectedRoute = ref('环线1路')
 
+function formatLocalTime(isoStr?: string): string {
+  if (!isoStr) return ''
+  const d = new Date(isoStr)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 // routeKey 映射
 const routeToKey: Record<string, string> = {
   '环线1路': 'HX1_NORMAL', '环线2路': 'HX2_NORMAL', '环线3路': 'HX3_NORMAL', '就餐专线': 'HX1_DINING'
@@ -228,7 +234,7 @@ watch(selectedRoute, () => {
 
           <div v-for="rec in uploadStore.history" :key="rec.id" class="history-card">
             <div class="history-header">
-              <span>{{ rec.date }} {{ rec.created_at?.slice(11, 16) }} {{ rec.route }}</span>
+              <span>{{ rec.date }} {{ formatLocalTime(rec.created_at) }} {{ rec.route }}</span>
               <van-button size="mini" type="danger" plain @click="uploadStore.deleteRecord(rec.id)">撤销</van-button>
             </div>
             <div class="history-segs">
