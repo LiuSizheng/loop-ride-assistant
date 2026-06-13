@@ -114,7 +114,6 @@ function handleViewOnMap() {
             :class="{ passed: idx <= busProgress.currentIdx && !busProgress.isBeforeStart }"
             :style="(idx <= busProgress.currentIdx && !busProgress.isBeforeStart) ? { background: routeColor } : {}"
           ></div>
-          <div v-if="idx < stops.length - 1" class="spacer"></div>
         </div>
         <span class="stop-name">{{ stop.stopName }}</span>
         <span class="stop-time">{{ stop.arrivalTime }}</span>
@@ -146,12 +145,9 @@ function handleViewOnMap() {
   padding: 3px 0; font-size: 13px; line-height: 20px;
 }
 .stop-indicator {
-  display: flex; flex-direction: column; align-items: center;
-  width: 18px; flex-shrink: 0; position: relative; z-index: 2;
-}
-/* 圆点上方加对称占位 → 圆点在 indicator 垂直中心 → 与文字中心对齐 */
-.stop-indicator::before {
-  content: ''; display: block; height: 6px; flex-shrink: 0;
+  width: 18px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 2;
 }
 .dot {
   width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; transition: background 0.4s;
@@ -166,8 +162,6 @@ function handleViewOnMap() {
   background: var(--color-hx1); width: 16px; height: 16px;
   font-size: 10px; color: #fff; display: flex; align-items: center; justify-content: center;
 }
-.spacer { width: 2px; height: 14px; margin: 2px 0; flex-shrink: 0; }
-
 .progress-rail {
   position: absolute; left: 8px; top: 11px; bottom: 11px;
   width: 2px; z-index: 1; border-radius: 1px;
