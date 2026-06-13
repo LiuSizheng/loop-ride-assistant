@@ -4,6 +4,7 @@ import { useScheduleStore } from '@/stores/schedule'
 import { getDateType, getDateTypeLabel } from '@/utils/datetime'
 import type { RouteName, DateType } from '@/types'
 import RouteBadge from '@/components/common/RouteBadge.vue'
+import BusStopTimeline from '@/components/common/BusStopTimeline.vue'
 
 const scheduleStore = useScheduleStore()
 const selectedRoute = ref<RouteName>('环线1路')
@@ -44,16 +45,6 @@ const groupedDepartures = computed(() => {
 
 function toggleExpand(recordId: string) {
   expandedId.value = expandedId.value === recordId ? null : recordId
-}
-
-// 获取某条发车的站序
-function getStopSequence(dep: (typeof departures.value)[0]) {
-  const pattern = scheduleStore.getPattern(dep.routeKey)
-  if (!pattern) return []
-  const preds = scheduleStore.predictions.filter(
-    (p) => p.departureId === dep.recordId
-  )
-  return preds.sort((a, b) => a.stopSeq - b.stopSeq)
 }
 
 function isDining(dep: (typeof departures.value)[0]): boolean {
@@ -127,24 +118,13 @@ watch(selectedRoute, (r) => {
             </div>
           </div>
 
-          <!-- 展开的站点序列 -->
-          <div v-if="expandedId === dep.recordId" class="stop-sequence">
-            <div
-              v-for="(stop, idx) in getStopSequence(dep)"
-              :key="idx"
-              class="stop-row"
-              :class="{ 'is-start': stop.isDepartureStop, 'is-end': stop.isReturnStop }"
-            >
-              <div class="stop-indicator">
-                <div v-if="stop.isDepartureStop" class="dot start">发</div>
-                <div v-else-if="stop.isReturnStop" class="dot end">终</div>
-                <div v-else class="dot normal"></div>
-                <div v-if="idx < getStopSequence(dep).length - 1" class="line"></div>
-              </div>
-              <span class="stop-name">{{ stop.stopName }}</span>
-              <span class="stop-time">{{ stop.arrivalTime }}</span>
-            </div>
-          </div>
+          <!-- 展开的站点序列（带公交车动画） -->
+          <BusStopTimeline
+            v-if="expandedId === dep.recordId"
+            :departure-id="dep.recordId"
+            :route-key="dep.routeKey"
+            :show-map-btn="false"
+          />
         </div>
       </div>
     </div>
@@ -241,53 +221,6 @@ watch(selectedRoute, (r) => {
 .rotated {
   transform: rotate(180deg);
   transition: transform 0.2s;
-}
-
-.stop-sequence {
-  padding: 4px 14px 12px 26px;
-  border-top: 1px solid var(--color-border);
-}
-.stop-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 3px 0;
-  font-size: 13px;
-}
-.stop-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 18px;
-  flex-shrink: 0;
-}
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.dot.normal { background: #CBD5E1; }
-.dot.start { background: var(--color-hx2); width: 16px; height: 16px; font-size: 10px; color: #fff; display: flex; align-items: center; justify-content: center; }
-.dot.end { background: var(--color-hx1); width: 16px; height: 16px; font-size: 10px; color: #fff; display: flex; align-items: center; justify-content: center; }
-.line {
-  width: 2px;
-  height: 14px;
-  background: #E5E7EB;
-  margin: 2px 0;
-}
-.stop-name {
-  flex: 1;
-  color: var(--color-text);
-}
-.stop-time {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-.is-start .stop-name,
-.is-end .stop-name {
-  font-weight: 600;
 }
 
 .empty {
