@@ -321,7 +321,7 @@ onMounted(async () => {
       layers: [new (window as any).AMap.TileLayer.Satellite()],
     })
 
-    // 先处理 query 参数（首页联动），再渲染，避免重复绘制
+    // 先处理 query 参数，让 watch 自动触发 renderStops
     const q = route.query
     if (q.route) {
       mapStore.clearAllRoutes()
@@ -330,7 +330,9 @@ onMounted(async () => {
       mapStore.setAllRoutesVisible()
     }
 
-    renderStops()
+    // 等待 Vue 刷新 watch，确保只渲染一次
+    await new Promise(r => setTimeout(r, 0))
+
     animFrameId = requestAnimationFrame(animateBusPositions)
     userMarkerInterval = setInterval(updateUserMarker, 5000)
 
