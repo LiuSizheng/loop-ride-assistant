@@ -27,61 +27,59 @@ const ROUTE_COLORS: Record<string, string> = {
 }
 const routeColor = computed(() => ROUTE_COLORS[props.routeKey] || '#6B7280')
 
-const stops = computed<ArrivalPrediction[]>(() => {
-  return scheduleStore.predictions
+const stops = computed<ArrivalPrediction[]>(() =>
+  scheduleStore.predictions
     .filter((p) => p.departureId === props.departureId)
     .sort((a, b) => a.stopSeq - b.stopSeq)
-})
+)
 
-// 各段时长（秒），用于按比例分配间距
-const segmentDurations = computed(() => {
-  const s = stops.value
-  const d: number[] = []
-  for (let i = 1; i < s.length; i++) {
-    d.push(Math.max(1, s[i].cumulativeSeconds - s[i - 1].cumulativeSeconds))
-  }
-  return d
-})
-
-const totalDuration = computed(() => {
-  const s = stops.value
-  if (s.length < 2) return 1
-  return s[s.length - 1].cumulativeSeconds - s[0].cumulativeSeconds
-})
-
+// 当前时间进度 — 基于秒数，NON-uniform speed per segment
 const busProgress = computed(() => {
   void tick.value
-  if (stops.value.length < 2) return { currentIdx: -1, fraction: 0, isBeforeStart: true, isAfterEnd: false }
+  const s = stops.value
+  if (s.length < 2) return { currentIdx: -1, fraction: 0, isBeforeStart: true, isAfterEnd: false }
   const nowSec = getSecondsSinceMidnight(getNow())
-  const departureMin = stops.value[0]?.departureMinutes ?? 0
-  if (nowSec < departureMin) return { currentIdx: -1, fraction: 0, isBeforeStart: true, isAfterEnd: false }
-  const lastStop = stops.value[stops.value.length - 1]
-  if (nowSec >= lastStop.cumulativeSeconds + departureMin * 60) {
-    return { currentIdx: stops.value.length - 1, fraction: 0, isBeforeStart: false, isAfterEnd: true }
-  }
-  for (let i = 1; i < stops.value.length; i++) {
-    const segStart = stops.value[i - 1].cumulativeSeconds
-    const segEnd = stops.value[i].cumulativeSeconds
-    if (nowSec <= departureMin * 60 + segEnd) {
-      const duration = segEnd - segStart
-      const fraction = duration > 0 ? (nowSec - departureMin * 60 - segStart) / duration : 0
-      return { currentIdx: i - 1, fraction: Math.max(0, Math.min(1, fraction)), isBeforeStart: false, isAfterEnd: false }
+  const depMin = s[0]?.departureMinutes ?? 0
+  if (nowSec < depMin) return { currentIdx: -1, fraction: 0, isBeforeStart: true, isAfterEnd: false }
+  const last = s[s.length - 1]
+  if (nowSec >= last.cumulativeSeconds + depMin * 60)
+    return { currentIdx: s.length - 1, fraction: 0, isBeforeStart: false, isAfterEnd: true }
+  for (let i = 1; i < s.length; i++) {
+    const segStart = s[i - 1].cumulativeSeconds
+    const segEnd = s[i].cumulativeSeconds
+    if (nowSec <= depMin * 60 + segEnd) {
+      const dur = segEnd - segStart
+      const frac = dur > 0 ? (nowSec - depMin * 60 - segStart) / dur : 0
+      return { currentIdx: i - 1, fraction: Math.max(0, Math.min(1, frac)), isBeforeStart: false, isAfterEnd: false }
     }
   }
-  return { currentIdx: stops.value.length - 1, fraction: 0, isBeforeStart: false, isAfterEnd: true }
-})
-
-// 按时间比例计算进度（0~1）
-const progressFraction = computed(() => {
-  const { currentIdx, fraction, isBeforeStart, isAfterEnd } = busProgress.value
-  const s = stops.value
-  if (s.length < 2 || isBeforeStart) return 0
-  if (isAfterEnd) return 1
-  const elapsed = s[currentIdx].cumulativeSeconds + fraction * (segmentDurations.value[currentIdx] || 1)
-  return elapsed / totalDuration.value
+  return { currentIdx: s.length - 1, fraction: 0, isBeforeStart: false, isAfterEnd: true }
 })
 
 const showBus = computed(() => !busProgress.value.isBeforeStart && !busProgress.value.isAfterEnd)
+
+// 公交位置：等间距布局，但 fraction 基于时间 → 不同段移动速度不同
+const busTopStyle = computed(() => {
+  const { currentIdx, fraction, isBeforeStart, isAfterEnd } = busProgress.value
+  const total = stops.value.length
+  if (total <= 1 || isBeforeStart || isAfterEnd) return '0px'
+  const frac = (currentIdx + fraction) / (total - 1)
+  return `calc(${frac * 100}% - ${frac * 22}px + 11px)`
+})
+
+// 进度条渐变
+const progressFraction = computed(() => {
+  const { currentIdx, fraction, isBeforeStart, isAfterEnd } = busProgress.value
+  const total = stops.value.length
+  if (total <= 1 || isBeforeStart) return 0
+  if (isAfterEnd) return 1
+  return (currentIdx + fraction) / (total - 1)
+})
+
+const railStyle = computed(() => {
+  const pct = Math.round(progressFraction.value * 100)
+  return { background: `linear-gradient(to bottom, ${routeColor.value} ${pct}%, #E5E7EB ${pct}%)` }
+})
 
 const iconFile = computed(() => {
   if (props.routeKey === 'HX1_DINING') return 'icons/就餐专线.png'
@@ -95,32 +93,14 @@ const BASE_URL = import.meta.env.BASE_URL
 function handleViewOnMap() {
   emit('view-on-map', props.departureId, props.routeKey)
 }
-
-// 公交位置：按时间比例映射到进度条区间（top:11px ~ bottom:11px）
-const busTopStyle = computed(() => {
-  if (!showBus.value) return '0px'
-  const p = progressFraction.value * 100
-  return `calc(${p}% - ${p * 0.22}px + 11px)`
-})
-
-// 进度条渐变
-const railStyle = computed(() => {
-  const pct = Math.round(progressFraction.value * 100)
-  return { background: `linear-gradient(to bottom, ${routeColor.value} ${pct}%, #E5E7EB ${pct}%)` }
-})
-
-// 各占位段 flex-grow = 段时长（按比例分配间距）
-function spacerFlex(idx: number): Record<string, string> {
-  const dur = segmentDurations.value[idx] || 1
-  return { flex: `${dur} 0 0` }
-}
 </script>
 
 <template>
   <div class="timeline-root">
     <div class="stop-list">
+      <!-- 单条连续进度条 -->
       <div class="progress-rail" :style="railStyle"></div>
-
+      <!-- 公交车骑在进度条前端 -->
       <div v-if="showBus" class="bus-on-line" :style="{ top: busTopStyle }">
         <img :src="`${BASE_URL}${iconFile}`" width="20" height="20"
           style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))" />
@@ -134,7 +114,7 @@ function spacerFlex(idx: number): Record<string, string> {
             :class="{ passed: idx <= busProgress.currentIdx && !busProgress.isBeforeStart }"
             :style="(idx <= busProgress.currentIdx && !busProgress.isBeforeStart) ? { background: routeColor } : {}"
           ></div>
-          <div v-if="idx < stops.length - 1" class="spacer" :style="spacerFlex(idx)"></div>
+          <div v-if="idx < stops.length - 1" class="spacer"></div>
         </div>
         <span class="stop-name">{{ stop.stopName }}</span>
         <span class="stop-time">{{ stop.arrivalTime }}</span>
@@ -152,102 +132,56 @@ function spacerFlex(idx: number): Record<string, string> {
 
 <style scoped>
 .timeline-root {
-  position: relative;
-  padding: 4px 14px 0 26px;
-  border-top: 1px solid var(--color-border);
-  background: #FAFBFC;
+  position: relative; padding: 4px 14px 0 26px;
+  border-top: 1px solid var(--color-border); background: #FAFBFC;
 }
 .bus-on-line {
-  position: absolute;
-  left: 9px;
-  z-index: 3;
+  position: absolute; left: 9px; z-index: 3;
   transform: translate(-50%, -50%);
-  transition: top 0.5s linear;
-  pointer-events: none;
+  transition: top 0.5s linear; pointer-events: none;
 }
-
-/* 核心：stop-list 使用 flex 列布局，spacer 按时间比例分配高度 */
-.stop-list {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
+.stop-list { position: relative; }
 .stop-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 3px 0;
-  font-size: 13px;
-  line-height: 20px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 3px 0; font-size: 13px; line-height: 20px;
 }
 .stop-indicator {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 18px;
-  flex-shrink: 0;
-  align-self: stretch;
-  position: relative;
-  z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  width: 18px; flex-shrink: 0; position: relative; z-index: 2;
 }
-/* 圆点上方加对称占位，使圆点位于 indicator 垂直中心 → 与同行文字中心对齐 */
+/* 圆点上方加对称占位 → 圆点在 indicator 垂直中心 → 与文字中心对齐 */
 .stop-indicator::before {
-  content: '';
-  flex: 1 1 0;
-  min-height: 0;
+  content: ''; display: block; height: 6px; flex-shrink: 0;
 }
 .dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  transition: background 0.4s;
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; transition: background 0.4s;
 }
 .dot.normal { background: #CBD5E1; }
 .dot.normal.passed { box-shadow: 0 0 4px rgba(0,0,0,0.15); }
 .dot.start {
-  background: var(--color-hx2);
-  width: 16px; height: 16px;
-  font-size: 10px; color: #fff;
-  display: flex; align-items: center; justify-content: center;
+  background: var(--color-hx2); width: 16px; height: 16px;
+  font-size: 10px; color: #fff; display: flex; align-items: center; justify-content: center;
 }
 .dot.end {
-  background: var(--color-hx1);
-  width: 16px; height: 16px;
-  font-size: 10px; color: #fff;
-  display: flex; align-items: center; justify-content: center;
+  background: var(--color-hx1); width: 16px; height: 16px;
+  font-size: 10px; color: #fff; display: flex; align-items: center; justify-content: center;
 }
-/* 占位段：flex-grow 按段时长比例，最小 4px */
-.spacer {
-  width: 2px;
-  flex: 1 0 4px;
-  min-height: 4px;
-}
+.spacer { width: 2px; height: 14px; margin: 2px 0; flex-shrink: 0; }
 
 .progress-rail {
-  position: absolute;
-  left: 8px;
-  top: 11px;
-  bottom: 11px;
-  width: 2px;
-  z-index: 1;
-  border-radius: 1px;
+  position: absolute; left: 8px; top: 11px; bottom: 11px;
+  width: 2px; z-index: 1; border-radius: 1px;
 }
 
-.stop-name {
-  flex: 1;
-  color: var(--color-text);
-}
+.stop-name { flex: 1; color: var(--color-text); }
 .stop-time {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-text-secondary);
-  font-size: 12px;
+  font-variant-numeric: tabular-nums; color: var(--color-text-secondary); font-size: 12px;
 }
 
 .timeline-footer {
   display: flex; align-items: center; justify-content: center;
   gap: 6px; padding: 8px 0 10px; margin-top: 4px;
-  font-size: 12px; color: var(--color-primary);
-  cursor: pointer; user-select: none;
+  font-size: 12px; color: var(--color-primary); cursor: pointer; user-select: none;
   border-top: 1px dashed #E5E7EB;
 }
 .timeline-footer:active { opacity: 0.7; }
