@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useScheduleStore } from '@/stores/schedule'
 import { getNow } from '@/utils/time'
 import { getSecondsSinceMidnight } from '@/utils/datetime'
@@ -15,6 +15,12 @@ const emit = defineEmits<{
 }>()
 
 const scheduleStore = useScheduleStore()
+
+// 1 秒定时刷新，保证车辆在展开时实时移动
+const tick = ref(0)
+let timer: ReturnType<typeof setInterval> | null = null
+onMounted(() => { timer = setInterval(() => { tick.value++ }, 1000) })
+onUnmounted(() => { if (timer) clearInterval(timer) })
 
 // 路线颜色
 const ROUTE_COLORS: Record<string, string> = {
@@ -35,6 +41,7 @@ const stops = computed<ArrivalPrediction[]>(() => {
 
 // 当前时间进度：计算车辆在哪个站之间
 const busProgress = computed(() => {
+  void tick.value // 依赖 tick 触发重算
   if (stops.value.length < 2) return { currentIdx: -1, fraction: 0, isBeforeStart: true, isAfterEnd: false }
 
   const nowSec = getSecondsSinceMidnight(getNow())
@@ -67,14 +74,16 @@ const busProgress = computed(() => {
   return { currentIdx: stops.value.length - 1, fraction: 0, isBeforeStart: false, isAfterEnd: true }
 })
 
-// 公交车图标在时间线上的位置百分比（对齐到站点圆点列的中心）
-const busTopPercent = computed(() => {
+// 公交车在时间线上的 top 值（CSS calc，对齐到第一个圆点）
+const busTopStyle = computed(() => {
   const { currentIdx, fraction, isBeforeStart, isAfterEnd } = busProgress.value
   const total = stops.value.length
-  if (total <= 1) return 0
-  if (isBeforeStart) return 0
-  if (isAfterEnd) return 100
-  return ((currentIdx + fraction) / (total - 1)) * 100
+  if (total <= 1) return '0px'
+  if (isBeforeStart) return '0px'
+  if (isAfterEnd) return '0px'  // 隐藏（showBus 会处理）
+  const pct = ((currentIdx + fraction) / (total - 1)) * 100
+  // calc: 百分比相对 stop-list 高度，+11px 补偿到第一个圆点中心
+  return `calc(${pct}% + 11px)`
 })
 
 const showBus = computed(() => {
@@ -116,7 +125,7 @@ function lineStyle(idx: number): Record<string, string> {
       <div
         v-if="showBus"
         class="bus-on-line"
-        :style="{ top: busTopPercent + '%' }"
+        :style="{ top: busTopStyle }"
       >
         <img
           :src="`${BASE_URL}${iconFile}`"
@@ -179,7 +188,6 @@ function lineStyle(idx: number): Record<string, string> {
 
 .stop-list {
   position: relative;
-  padding-top: 12px;
 }
 
 .stop-row {
