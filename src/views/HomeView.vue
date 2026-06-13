@@ -34,13 +34,19 @@ const expandedBusId = ref<string | null>(null)
 const nowTick = ref(0)  // 用于强制刷新
 const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
 
-// 站点点击频次
+// 站点点击频次（仅用于本地持久化，排序在 onMounted 时确定）
 const clickFreq = ref<Record<string, number>>({})
+// 站点排序只在页面加载时刷新一次
+const sortedStops = ref<string[]>([])
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   try { clickFreq.value = JSON.parse(localStorage.getItem('stop_click_freq') || '{}') } catch { clickFreq.value = {} }
+  // 排序只在初始化时执行一次
+  const stops = [...scheduleStore.stations.map(s => s.name)]
+  stops.sort((a, b) => (clickFreq.value[b] || 0) - (clickFreq.value[a] || 0))
+  sortedStops.value = stops
   refreshTimer = setInterval(() => { refresh(); nowTick.value++ }, 1000)
 })
 
@@ -53,12 +59,6 @@ function recordClick(stopName: string) {
   try { localStorage.setItem('stop_click_freq', JSON.stringify(clickFreq.value)) } catch {}
 }
 
-// 按频次排序
-const sortedStops = computed(() => {
-  const stops = scheduleStore.stations.map(s => s.name)
-  stops.sort((a, b) => (clickFreq.value[b] || 0) - (clickFreq.value[a] || 0))
-  return stops
-})
 const collapsedStops = computed(() => sortedStops.value.slice(0, 6))
 const filteredStops = computed(() => {
   if (!stopSearch.value) return []
@@ -309,10 +309,10 @@ const displayedArrivals = computed(() => {
 .section { margin-bottom: 20px; }
 .section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--color-text); }
 .stop-grid { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px; }
-.stop-chip { padding: 6px 14px; background: var(--color-card); border-radius: 16px; font-size: 14px; border: 1px solid var(--color-border); cursor: pointer; position: relative; transition: all 0.15s; }
+.stop-chip { padding: 4px 10px; background: var(--color-card); border-radius: 14px; font-size: 12px; border: 1px solid var(--color-border); cursor: pointer; position: relative; transition: all 0.15s; }
 .stop-chip:active { background: #EFF6FF; border-color: var(--color-primary); }
 .stop-chip.active { background: #EFF6FF; border-color: var(--color-primary); color: var(--color-primary); font-weight: 600; }
-.freq-badge { position: absolute; top: -6px; right: -6px; background: var(--color-primary); color: #fff; font-size: 10px; padding: 0 4px; border-radius: 6px; line-height: 14px; }
+.freq-badge { position: absolute; top: -5px; right: -5px; background: var(--color-primary); color: #fff; font-size: 9px; padding: 0 3px; border-radius: 5px; line-height: 13px; }
 .more-btn { background: #F3F4F6; border-color: #D1D5DB; color: var(--color-text-secondary); }
 .no-result { font-size: 13px; color: var(--color-text-secondary); padding: 4px; }
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
