@@ -152,17 +152,18 @@ function renderStops() {
 
       const showLabel = mapStore.showLabels
       const markerContent = showLabel
-        ? `<div style="text-align:center;line-height:1.2;">
+        ? `<div style="position:relative;text-align:center;padding-bottom:7px;">
             <div style="
               display:inline-block;padding:2px 6px;border-radius:10px;
               background:${color};color:#fff;font-size:11px;
               white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.3);
-              margin-bottom:2px;
-            ">${stop.name}</div><br>
+            ">${stop.name}</div>
             <div style="
-              display:inline-block;width:10px;height:10px;
+              position:absolute;left:50%;bottom:0;
+              width:10px;height:10px;
               background:${color};border:2px solid #fff;
               border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);
+              transform:translate(-50%,50%);
             "></div>
           </div>`
         : `<div style="
