@@ -321,8 +321,11 @@ onMounted(async () => {
       layers: [new (window as any).AMap.TileLayer.Satellite()],
     })
 
-    // 重置为全部路线可见（避免上次 query 参数残留）
-    if (!route.query.route) {
+    // 先处理 query 参数（首页联动），再渲染，避免重复绘制
+    const q = route.query
+    if (q.route) {
+      mapStore.toggleRouteOnly(q.route as string)
+    } else {
       mapStore.setAllRoutesVisible()
     }
 
@@ -330,11 +333,6 @@ onMounted(async () => {
     animFrameId = requestAnimationFrame(animateBusPositions)
     userMarkerInterval = setInterval(updateUserMarker, 5000)
 
-    // 首页联动：聚焦指定线路和车辆
-    const q = route.query
-    if (q.route) {
-      mapStore.toggleRouteOnly(q.route as string)
-    }
     if (q.bus) {
       trackedBusId.value = q.bus as string
     }
