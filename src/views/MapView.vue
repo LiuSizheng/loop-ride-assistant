@@ -173,13 +173,11 @@ function renderStops() {
             box-shadow:0 1px 3px rgba(0,0,0,0.3);
           "></div>`
 
-      const offsetX = showLabel ? 0 : -6
-      const offsetY = showLabel ? -26 : -6
       const marker = new (window as any).AMap.Marker({
         position: [stop.lng, stop.lat],
         title: stop.name,
         content: markerContent,
-        offset: new (window as any).AMap.Pixel(offsetX, offsetY),
+        anchor: showLabel ? 'bottom-center' : 'center',
         zIndex: 50,
       })
 
