@@ -13,6 +13,61 @@ const expandedId = ref<string | null>(null)
 
 const routes: RouteName[] = ['环线1路', '环线2路', '环线3路']
 
+// ─── 行程规划 ───
+const plannerMode = ref(false)
+const planOrigin = ref('')
+const planDest = ref('')
+const planDeadline = ref('') // "HH:MM"
+const planResults = ref<any[]>([])
+
+const allStops = computed(() => {
+  const names = new Set<string>()
+  for (const rp of scheduleStore.routePatterns) {
+    for (const s of rp.stops) names.add(s.currentStop)
+  }
+  return [...names].sort()
+})
+
+function doSearch() {
+  if (!planOrigin.value || !planDest.value || !planDeadline.value) return
+  const [dh, dm] = planDeadline.value.split(':').map(Number)
+  const deadlineMin = dh * 60 + dm
+  const dt = selectedDateType.value
+  const results: any[] = []
+
+  for (const r of routes) {
+    const deps = scheduleStore.getDepartures(dt, r)
+    for (const dep of deps) {
+      const preds = scheduleStore.predictions
+        .filter(p => p.departureId === dep.recordId)
+        .sort((a, b) => a.stopSeq - b.stopSeq)
+
+      const originIdx = preds.findIndex(p => p.stopName === planOrigin.value)
+      const destIdx = preds.findIndex(p => p.stopName === planDest.value)
+      if (originIdx < 0 || destIdx < 0 || originIdx >= destIdx) continue
+
+      const destPred = preds[destIdx]
+      const arrivalMin = destPred.arrivalMinutes
+      if (arrivalMin > deadlineMin) continue
+
+      const originPred = preds[originIdx]
+      results.push({
+        departure: dep,
+        boardStop: originPred.stopName,
+        boardTime: originPred.arrivalTime,
+        boardMinutes: originPred.arrivalMinutes,
+        destStop: destPred.stopName,
+        destTime: destPred.arrivalTime,
+        destMinutes: destPred.arrivalMinutes,
+        isBoardDeparture: originPred.isDepartureStop,
+      })
+    }
+  }
+
+  results.sort((a, b) => a.destMinutes - b.destMinutes)
+  planResults.value = results
+}
+
 // 当前查询的发车列表
 const departures = computed(() => {
   return scheduleStore.getDepartures(selectedDateType.value, selectedRoute.value)
@@ -61,6 +116,61 @@ watch(selectedRoute, (r) => {
 
 <template>
   <div class="schedule-page">
+    <!-- 模式切换 -->
+    <div class="mode-toggle">
+      <span class="mode-btn" :class="{ active: !plannerMode }" @click="plannerMode = false">时刻表</span>
+      <span class="mode-btn" :class="{ active: plannerMode }" @click="plannerMode = true">行程规划</span>
+    </div>
+
+    <!-- 行程规划面板 -->
+    <div v-if="plannerMode" class="planner-panel">
+      <div class="planner-row">
+        <label>出发</label>
+        <select v-model="planOrigin">
+          <option value="">选择出发站</option>
+          <option v-for="s in allStops" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+      <div class="planner-row">
+        <label>到达</label>
+        <select v-model="planDest">
+          <option value="">选择到达站</option>
+          <option v-for="s in allStops" :key="s" :value="s">{{ s }}</option>
+        </select>
+      </div>
+      <div class="planner-row">
+        <label>期限</label>
+        <input v-model="planDeadline" type="time" placeholder="在此时间前到达" />
+      </div>
+      <van-button type="primary" block round @click="doSearch" :disabled="!planOrigin || !planDest || !planDeadline">查询可乘线路</van-button>
+
+      <!-- 结果 -->
+      <div v-if="planResults.length > 0" class="plan-results">
+        <div class="plan-result-title">找到 {{ planResults.length }} 趟可乘车次</div>
+        <div v-for="(r, i) in planResults" :key="i" class="plan-card">
+          <div class="plan-card-top">
+            <RouteBadge :route="r.departure.route" :dining="r.departure.routeKey === 'HX1_DINING'" />
+            <span class="plan-shift">{{ r.departure.shiftName }}</span>
+            <span class="plan-from" v-if="r.departure.isGaochaoDeparture">高超楼发车</span>
+          </div>
+          <div class="plan-card-body">
+            <div class="plan-step">
+              <span class="plan-step-dot start"></span>
+              <span class="plan-step-text">{{ r.boardTime }} 在「{{ r.boardStop }}」{{ r.isBoardDeparture ? '发车' : '上车' }}</span>
+            </div>
+            <div class="plan-step-line"></div>
+            <div class="plan-step">
+              <span class="plan-step-dot end"></span>
+              <span class="plan-step-text">{{ r.destTime }} 到达「{{ r.destStop }}」</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else-if="planResults.length === 0 && planOrigin" class="plan-empty">该时段无可乘线路</div>
+    </div>
+
+    <!-- 时刻表模式 -->
+    <template v-if="!plannerMode">
     <!-- 线路选择 -->
     <van-tabs
       v-model:active="selectedRoute"
@@ -132,6 +242,7 @@ watch(selectedRoute, (r) => {
     <div v-else-if="scheduleStore.isDataLoaded" class="empty">
       该日期类型暂无此线路发车
     </div>
+    </template>
   </div>
 </template>
 
@@ -139,6 +250,48 @@ watch(selectedRoute, (r) => {
 .schedule-page {
   padding-bottom: 20px;
 }
+
+/* 模式切换 */
+.mode-toggle {
+  display: flex; padding: 8px 16px; gap: 8px; background: var(--color-card);
+}
+.mode-btn {
+  padding: 4px 16px; border-radius: 14px; font-size: 13px; cursor: pointer;
+  background: #F3F4F6; color: var(--color-text-secondary); user-select: none;
+}
+.mode-btn.active { background: var(--color-primary); color: #fff; }
+
+/* 行程规划 */
+.planner-panel { padding: 12px 16px; }
+.planner-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px;
+}
+.planner-row label { width: 36px; color: var(--color-text-secondary); flex-shrink: 0; }
+.planner-row select, .planner-row input {
+  flex: 1; padding: 6px 10px; border: 1px solid var(--color-border);
+  border-radius: 8px; font-size: 14px; outline: none; background: #fff;
+}
+.planner-row select:focus, .planner-row input:focus { border-color: var(--color-primary); }
+
+.plan-results { margin-top: 16px; }
+.plan-result-title { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); margin-bottom: 8px; }
+.plan-card {
+  background: var(--color-card); border-radius: 10px; padding: 12px 14px;
+  margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.plan-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.plan-shift { font-size: 13px; color: var(--color-text-secondary); }
+.plan-from { font-size: 11px; color: #F59E0B; }
+.plan-card-body { padding-left: 8px; }
+.plan-step { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.plan-step-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.plan-step-dot.start { background: var(--color-hx2); }
+.plan-step-dot.end { background: var(--color-hx1); }
+.plan-step-line {
+  width: 2px; height: 10px; background: #E5E7EB; margin: 1px 3px;
+}
+.plan-step-text { font-size: 13px; color: var(--color-text); }
+.plan-empty { text-align: center; padding: 24px; color: var(--color-text-secondary); font-size: 13px; }
 
 .date-toggle {
   display: flex;
