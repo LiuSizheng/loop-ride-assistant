@@ -315,7 +315,7 @@ const displayedArrivals = computed(() => {
 .bus-from { font-size: 11px; color: #F59E0B; white-space: nowrap; }
 .tags-col { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.2; }
 .bus-card-right { text-align: right; flex-shrink: 0; }
-.depart-tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.depart-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
 .depart-tag.gone { background: #D1FAE5; color: #059669; }
 .depart-tag.wait { background: #FEE2E2; color: #DC2626; }
 .arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text); }
