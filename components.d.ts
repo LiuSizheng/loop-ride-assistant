@@ -7,6 +7,7 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    BusStopTimeline: typeof import('./src/components/common/BusStopTimeline.vue')['default']
     ETAIndicator: typeof import('./src/components/common/ETAIndicator.vue')['default']
     MapLegend: typeof import('./src/components/map/MapLegend.vue')['default']
     OfflineBanner: typeof import('./src/components/common/OfflineBanner.vue')['default']

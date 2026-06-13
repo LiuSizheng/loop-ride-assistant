@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useScheduleStore } from '@/stores/schedule'
 import { useMapStore } from '@/stores/map'
 import { useGeolocation } from '@/composables/useGeolocation'
@@ -13,6 +14,8 @@ import type { BusPosition } from '@/types'
 
 const scheduleStore = useScheduleStore()
 const mapStore = useMapStore()
+const route = useRoute()
+const router = useRouter()
 useGeolocation()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -23,6 +26,10 @@ let stopMarkers: any[] = []
 let routePolylines: any[] = []
 let userMarker: any = null
 let userMarkerInterval: ReturnType<typeof setInterval> | null = null
+
+// 从首页跳转过来的车辆聚焦
+const trackedBusId = ref<string | null>(null)
+let trackedBusFrameCount = 0
 
 // ---- 路线颜色 ----
 const ROUTE_COLORS: Record<string, string> = {
@@ -219,6 +226,18 @@ function animateBusPositions() {
   )
   mapStore.setBusPositions(visiblePositions)
 
+  // 聚焦追踪：每 15 帧更新一次地图中心
+  if (trackedBusId.value) {
+    const tracked = visiblePositions.find((p) => p.departureId === trackedBusId.value)
+    if (tracked) {
+      trackedBusFrameCount++
+      if (trackedBusFrameCount % 15 === 1) {
+        mapInstance.setCenter([tracked.lng, tracked.lat])
+        mapInstance.setZoom(16)
+      }
+    }
+  }
+
   const activeIds = new Set(visiblePositions.map((p) => p.departureId))
 
   // 移除不再活跃的标记
@@ -310,6 +329,16 @@ onMounted(async () => {
     renderStops()
     animFrameId = requestAnimationFrame(animateBusPositions)
     userMarkerInterval = setInterval(updateUserMarker, 5000)
+
+    // 首页联动：聚焦指定线路和车辆
+    const q = route.query
+    if (q.route) {
+      mapStore.toggleRouteOnly(q.route as string)
+    }
+    if (q.bus) {
+      trackedBusId.value = q.bus as string
+    }
+
     mapLoading.value = false
   } catch (e: any) {
     mapError.value = e.message || '地图加载失败'
@@ -346,6 +375,24 @@ function recenterOnUser() {
     mapInstance.setZoom(16)
   }
 }
+
+// 退出聚焦模式
+function exitFocus() {
+  trackedBusId.value = null
+  trackedBusFrameCount = 0
+  mapStore.setAllRoutesVisible()
+  router.replace({ path: '/map' })
+  // 恢复默认视角
+  if (mapInstance && scheduleStore.stations.length > 0) {
+    const lngs = scheduleStore.stations.map((s) => s.lng)
+    const lats = scheduleStore.stations.map((s) => s.lat)
+    mapInstance.setCenter([
+      (Math.min(...lngs) + Math.max(...lngs)) / 2,
+      (Math.min(...lats) + Math.max(...lats)) / 2 + 0.002,
+    ])
+    mapInstance.setZoom(15)
+  }
+}
 </script>
 
 <template>
@@ -373,6 +420,10 @@ function recenterOnUser() {
 
     <!-- 定位按钮 -->
     <div class="map-controls">
+      <!-- 退出聚焦 -->
+      <div v-if="trackedBusId" class="exit-focus-btn" @click="exitFocus">
+        退出聚焦
+      </div>
       <div class="locate-btn" @click="recenterOnUser">
         <van-icon name="aim" size="20" />
       </div>
@@ -428,6 +479,20 @@ function recenterOnUser() {
   bottom: 60px;
   right: 16px;
   z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.exit-focus-btn {
+  padding: 6px 12px;
+  background: #1F2937;
+  color: #fff;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 .locate-btn {
   width: 44px;

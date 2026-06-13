@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useNextBus } from '@/composables/useNextBus'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { useWeather } from '@/composables/useWeather'
@@ -12,6 +13,9 @@ import { getSecondsSinceMidnight } from '@/utils/datetime'
 import { arrivalCountdown, departureCountdown } from '@/utils/countdown'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import ETAIndicator from '@/components/common/ETAIndicator.vue'
+import BusStopTimeline from '@/components/common/BusStopTimeline.vue'
+
+const router = useRouter()
 
 const scheduleStore = useScheduleStore()
 const mapStore = useMapStore()
@@ -25,6 +29,7 @@ const isWeekday = computed(() => dateType.value === 'weekday')
 const stopSearch = ref('')
 const selectedStop = ref<string | null>(null)
 const stopExpanded = ref(false)
+const expandedBusId = ref<string | null>(null)
 const nowTick = ref(0)  // 用于强制刷新
 const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
 
@@ -72,6 +77,16 @@ function selectStop(name: string) {
   recordClick(name)
   selectedStop.value = name
   stopSearch.value = ''
+}
+
+// 展开/收起车次卡片
+function toggleBusCard(recordId: string) {
+  expandedBusId.value = expandedBusId.value === recordId ? null : recordId
+}
+
+// 跳转地图聚焦
+function handleViewOnMap(departureId: string, routeKey: string) {
+  router.push({ path: '/map', query: { route: routeKey, bus: departureId } })
 }
 
 // 当前选中站点作为目的地的车次推荐
@@ -190,7 +205,8 @@ const stopArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in stopArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card">
+      <div v-for="item in stopArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === (item as any).departure?.recordId }">
+        <div class="bus-card-main" @click="toggleBusCard((item as any).departure?.recordId)">
         <div class="bus-card-left">
           <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
@@ -208,6 +224,13 @@ const stopArrivals = computed(() => {
           <div class="arrival-time">{{ (item as any).arrivalTime }}</div>
           <ETAIndicator :seconds-until="(item as any).secondsUntil" type="arrival" />
         </div>
+        </div>
+        <BusStopTimeline
+          v-if="expandedBusId === (item as any).departure?.recordId"
+          :departure-id="(item as any).departure?.recordId"
+          :route-key="(item as any).departure?.routeKey"
+          @view-on-map="handleViewOnMap"
+        />
       </div>
     </div>
 
@@ -218,7 +241,8 @@ const stopArrivals = computed(() => {
 
     <div v-if="departingSoon.length > 0" class="section">
       <div class="section-title">即将发车</div>
-      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing">
+      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing" :class="{ expanded: expandedBusId === item.departure.recordId }">
+        <div class="bus-card-main" @click="toggleBusCard(item.departure.recordId)">
         <div class="bus-card-left">
           <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ item.departure.shiftName }}</span>
@@ -228,6 +252,13 @@ const stopArrivals = computed(() => {
           <div class="departure-time">{{ item.departure.departureTime }}</div>
           <ETAIndicator :seconds-until="item.secondsUntil" type="departure" />
         </div>
+        </div>
+        <BusStopTimeline
+          v-if="expandedBusId === item.departure.recordId"
+          :departure-id="item.departure.recordId"
+          :route-key="item.departure.routeKey"
+          @view-on-map="handleViewOnMap"
+        />
       </div>
     </div>
 
@@ -256,8 +287,11 @@ const stopArrivals = computed(() => {
 .no-result { font-size: 13px; color: var(--color-text-secondary); padding: 4px; }
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
-.bus-card { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+.bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
 .bus-card.departing { border-left: 3px solid var(--color-primary); }
+.bus-card.expanded { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.bus-card-main { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; }
+.bus-card-main:active { background: #F9FAFB; }
 .bus-card-left { display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden; }
 .bus-shift { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 .bus-from { font-size: 11px; color: #F59E0B; white-space: nowrap; }
