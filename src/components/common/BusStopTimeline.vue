@@ -123,7 +123,7 @@ function handleViewOnMap() {
       </div>
     </div>
 
-    <div v-if="props.showMapBtn !== false" class="timeline-footer" @click.stop="handleViewOnMap">
+    <div v-if="showMapBtn !== false" class="timeline-footer" @click.stop="handleViewOnMap">
       <span>在地图上查看</span>
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><path d="M8 2v16M16 6v16"/>
