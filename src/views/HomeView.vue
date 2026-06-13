@@ -220,9 +220,9 @@ const displayedArrivals = computed(() => {
         <div class="bus-card-left">
           <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
+          <span class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
         </div>
         <div class="bus-card-right" v-if="(item as any).originStop">
-          <div class="depart-status" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</div>
           <div class="boarding-info">在「{{ (item as any).originStop }}」上车</div>
           <ETAIndicator
             :seconds-until="(item as any).boardSec"
@@ -232,7 +232,6 @@ const displayedArrivals = computed(() => {
           <div class="dest-info">预计{{ (item as any).destArrivalTime }} 到「{{ (item as any).destStop }}」</div>
         </div>
         <div class="bus-card-right" v-else>
-          <div class="depart-status" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</div>
           <div class="arrival-time">{{ (item as any).arrivalTime }}</div>
           <ETAIndicator :seconds-until="(item as any).secondsUntil" type="arrival" />
         </div>
@@ -305,9 +304,9 @@ const displayedArrivals = computed(() => {
 .bus-shift { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 .bus-from { font-size: 11px; color: #F59E0B; white-space: nowrap; }
 .bus-card-right { text-align: right; flex-shrink: 0; }
-.depart-status { font-size: 11px; padding: 1px 6px; border-radius: 4px; display: inline-block; margin-bottom: 2px; }
-.depart-status.gone { background: #FEE2E2; color: #DC2626; }
-.depart-status.wait { background: #D1FAE5; color: #059669; }
+.depart-tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.depart-tag.gone { background: #D1FAE5; color: #059669; }
+.depart-tag.wait { background: #FEE2E2; color: #DC2626; }
 .arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text); }
 .departure-time { font-size: 20px; font-weight: 700; color: var(--color-primary); }
 .boarding-info { font-size: 12px; color: #10B981; }
