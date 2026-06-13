@@ -6,12 +6,12 @@ import { getNow } from './time'
 type RoutePath = [number, number][]  // [[lng, lat], ...]
 
 /**
- * 找到路径中距离给定坐标最近的点索引
+ * 找到路径中距离给定坐标最近的点索引（从 startFrom 之后开始搜索）
  */
-function findClosestPathIndex(path: RoutePath, lng: number, lat: number): number {
-  let best = 0
+function findClosestPathIndex(path: RoutePath, lng: number, lat: number, startFrom: number = 0): number {
+  let best = startFrom
   let bestDist = Infinity
-  for (let i = 0; i < path.length; i++) {
+  for (let i = startFrom; i < path.length; i++) {
     const dlng = path[i][0] - lng
     const dlat = path[i][1] - lat
     const dist = dlng * dlng + dlat * dlat
@@ -24,14 +24,16 @@ function findClosestPathIndex(path: RoutePath, lng: number, lat: number): number
 }
 
 /**
- * 计算路径上两点之间的累计距离（度）
+ * 计算路径上两点之间的累计距离（度），支持 fromIdx > toIdx 的环线回绕
  */
 function computePathDistances(path: RoutePath, fromIdx: number, toIdx: number): number[] {
   const dists: number[] = [0]
-  for (let i = fromIdx + 1; i <= toIdx; i++) {
-    const dlng = path[i][0] - path[i - 1][0]
-    const dlat = path[i][1] - path[i - 1][1]
-    dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
+  if (fromIdx < toIdx) {
+    for (let i = fromIdx + 1; i <= toIdx; i++) {
+      const dlng = path[i][0] - path[i - 1][0]
+      const dlat = path[i][1] - path[i - 1][1]
+      dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
+    }
   }
   return dists
 }
@@ -111,12 +113,16 @@ export function computeActiveBusPositions(
     if (elapsedSeconds < 0) continue // 尚未发车
     if (elapsedSeconds > pattern.totalSeconds + 300) continue // 已到终点
 
-    // 为每个站点找到路径中的对应索引
+    // 为每个站点找到路径中的对应索引（从上一个站点的索引之后搜索，保证单调）
     const stopPathIndices: number[] = []
+    let searchFrom = 0
     for (const s of pattern.stops) {
       const station = stationMap.get(s.currentStop)
       if (station) {
-        stopPathIndices.push(findClosestPathIndex(path, station.lng, station.lat))
+        const start = searchFrom < path.length ? searchFrom : 0
+        const idx = findClosestPathIndex(path, station.lng, station.lat, start)
+        stopPathIndices.push(idx)
+        searchFrom = idx + 1 // 下一个站点从当前之后开始搜
       } else {
         stopPathIndices.push(-1)
       }
