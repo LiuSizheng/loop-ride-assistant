@@ -97,6 +97,15 @@ function handleViewOnMap(departureId: string, routeKey: string) {
   router.push({ path: '/map', query: { route: routeKey, bus: departureId } })
 }
 
+// 路线颜色
+const ROUTE_COLORS: Record<string, string> = {
+  HX1_NORMAL: '#2563EB', HX1_DINING: '#F59E0B',
+  HX2_NORMAL: '#10B981', HX3_NORMAL: '#8B5CF6', HX3_GAOCHAO: '#7C3AED',
+}
+function routeBorderColor(routeKey?: string): string {
+  return ROUTE_COLORS[routeKey || ''] || '#6B7280'
+}
+
 // 当前选中站点作为目的地的车次推荐
 const stopArrivals = computed(() => {
   if (!selectedStop.value) return []
@@ -221,7 +230,7 @@ const displayedArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in displayedArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }">
+      <div v-for="item in displayedArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
         <div class="bus-card-main" @click="toggleBusCard('arrival-' + (item as any).departure?.recordId)">
         <div class="bus-card-left">
           <div class="route-col">
@@ -268,7 +277,7 @@ const displayedArrivals = computed(() => {
 
     <div v-if="departingSoon.length > 0" class="section">
       <div class="section-title">即将发车</div>
-      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing">
+      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
         <div class="bus-card-left">
           <div class="route-col">
             <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
@@ -309,8 +318,8 @@ const displayedArrivals = computed(() => {
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
 .show-more-btn { text-align: center; padding: 12px; color: var(--color-primary); font-size: 13px; cursor: pointer; user-select: none; }
-.bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
-.bus-card.departing { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-left: 3px solid var(--color-primary); }
+.bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; border-left: 3px solid transparent; }
+.bus-card.departing { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
 .bus-card.expanded { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .bus-card-main { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; }
 .bus-card-main:active { background: #F9FAFB; }
@@ -323,7 +332,7 @@ const displayedArrivals = computed(() => {
 .depart-tag { font-size: 10px; padding: 1px 5px; border-radius: 4px; white-space: nowrap; }
 .depart-tag.gone { background: #D1FAE5; color: #059669; }
 .depart-tag.wait { background: #FEE2E2; color: #DC2626; }
-.arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text); }
+.arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-primary); }
 .departure-time { font-size: 20px; font-weight: 700; color: var(--color-primary); }
 .boarding-info { font-size: 12px; color: #10B981; }
 .dest-info { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
