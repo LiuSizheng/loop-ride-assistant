@@ -94,6 +94,18 @@ const BASE_URL = import.meta.env.BASE_URL
 function handleViewOnMap() {
   emit('view-on-map', props.departureId, props.routeKey)
 }
+
+// 线段样式：已过部分用路线颜色，当前段用渐变进度
+function lineStyle(idx: number): Record<string, string> {
+  const { currentIdx, fraction, isBeforeStart } = busProgress.value
+  if (isBeforeStart) return {}
+  if (idx < currentIdx) return { background: routeColor.value }
+  if (idx === currentIdx) {
+    const pct = Math.round(fraction * 100)
+    return { background: `linear-gradient(to bottom, ${routeColor.value} ${pct}%, #E5E7EB ${pct}%)` }
+  }
+  return {}
+}
 </script>
 
 <template>
@@ -128,7 +140,7 @@ function handleViewOnMap() {
             :class="{ passed: idx <= busProgress.currentIdx && !busProgress.isBeforeStart }"
             :style="(idx <= busProgress.currentIdx && !busProgress.isBeforeStart) ? { background: routeColor } : {}"
           ></div>
-          <div v-if="idx < stops.length - 1" class="line"></div>
+          <div v-if="idx < stops.length - 1" class="line" :style="lineStyle(idx)"></div>
         </div>
 
         <span class="stop-name">{{ stop.stopName }}</span>
