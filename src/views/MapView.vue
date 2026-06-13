@@ -28,6 +28,7 @@ let userMarkerInterval: ReturnType<typeof setInterval> | null = null
 
 // 从首页跳转过来的车辆聚焦
 const trackedBusId = ref<string | null>(null)
+let initializing = false
 
 // ---- 路线颜色 ----
 const ROUTE_COLORS: Record<string, string> = {
@@ -321,7 +322,8 @@ onMounted(async () => {
       layers: [new (window as any).AMap.TileLayer.Satellite()],
     })
 
-    // 先处理 query 参数，让 watch 自动触发 renderStops
+    // 重置路线可见性并渲染（用标志位阻止 watch 重复触发）
+    initializing = true
     const q = route.query
     if (q.route) {
       mapStore.clearAllRoutes()
@@ -329,10 +331,9 @@ onMounted(async () => {
     } else {
       mapStore.setAllRoutesVisible()
     }
+    initializing = false
 
-    // 等待 Vue 刷新 watch，确保只渲染一次
-    await new Promise(r => setTimeout(r, 0))
-
+    renderStops()
     animFrameId = requestAnimationFrame(animateBusPositions)
     userMarkerInterval = setInterval(updateUserMarker, 5000)
 
@@ -360,6 +361,7 @@ onUnmounted(() => {
 
 // 当路线可见性变化时重新渲染站点和折线（公交车由动画循环自动筛选）
 watch(() => mapStore.visibleRoutes, () => {
+  if (initializing) return
   renderStops()
 })
 
