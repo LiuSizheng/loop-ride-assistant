@@ -174,6 +174,7 @@ function togglePlanExpand(recordId: string) {
             :departure-id="r.departure.recordId"
             :route-key="r.departure.routeKey"
             :highlight-stop="planDest"
+            :highlight-origin="planOrigin"
             :show-map-btn="false"
           />
         </div>

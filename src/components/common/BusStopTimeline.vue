@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<{
   routeKey: string
   showMapBtn?: boolean
   highlightStop?: string
+  highlightOrigin?: string
 }>(), {
   showMapBtn: true,
 })
@@ -98,16 +99,24 @@ function handleViewOnMap() {
   emit('view-on-map', props.departureId, props.routeKey)
 }
 
-// 判断是否应高亮：同名站只高亮最后一次出现（终点站，非始发站）
-function isHighlighted(stopName: string, idx: number): boolean {
+// 判断是否应高亮：终点只高亮最后一次出现；起点高亮第一次出现
+function isDestHighlighted(stopName: string, idx: number): boolean {
   if (!props.highlightStop || stopName !== props.highlightStop) return false
   const s = stops.value
-  // 查找同名站的最后一次出现
   let lastIdx = idx
   for (let i = idx + 1; i < s.length; i++) {
     if (s[i].stopName === stopName) lastIdx = i
   }
   return idx === lastIdx
+}
+function isOriginHighlighted(stopName: string, idx: number): boolean {
+  if (!props.highlightOrigin || stopName !== props.highlightOrigin) return false
+  const s = stops.value
+  let firstIdx = idx
+  for (let i = idx - 1; i >= 0; i--) {
+    if (s[i].stopName === stopName) firstIdx = i
+  }
+  return idx === firstIdx
 }
 </script>
 
@@ -123,7 +132,10 @@ function isHighlighted(stopName: string, idx: number): boolean {
       </div>
 
       <div v-for="(stop, idx) in stops" :key="idx" class="stop-row"
-        :class="{ 'is-dest': isHighlighted(stop.stopName, idx) }">
+        :class="{
+          'is-dest': isDestHighlighted(stop.stopName, idx),
+          'is-origin': isOriginHighlighted(stop.stopName, idx),
+        }">
         <div class="stop-indicator">
           <div v-if="stop.isDepartureStop" class="dot start">发</div>
           <div v-else-if="stop.isReturnStop" class="dot end">终</div>
@@ -133,7 +145,10 @@ function isHighlighted(stopName: string, idx: number): boolean {
           ></div>
         </div>
         <span class="stop-name">{{ stop.stopName }}</span>
-        <span class="stop-time" :class="{ 'is-dest-time': isHighlighted(stop.stopName, idx) }">{{ stop.arrivalTime }}</span>
+        <span class="stop-time" :class="{
+          'is-dest-time': isDestHighlighted(stop.stopName, idx),
+          'is-origin-time': isOriginHighlighted(stop.stopName, idx),
+        }">{{ stop.arrivalTime }}</span>
       </div>
     </div>
 
@@ -203,6 +218,23 @@ function isHighlighted(stopName: string, idx: number): boolean {
 .is-dest-time {
   font-weight: 700;
   color: var(--color-primary) !important;
+  font-size: 13px !important;
+}
+
+/* 起点高亮（绿色） */
+.stop-row.is-origin {
+  background: linear-gradient(90deg, rgba(16,185,129,0.08) 0%, transparent 100%);
+  border-radius: 6px;
+  margin: 2px -8px;
+  padding: 2px 8px;
+}
+.stop-row.is-origin .stop-name {
+  font-weight: 700;
+  color: #10B981;
+}
+.is-origin-time {
+  font-weight: 700;
+  color: #10B981 !important;
   font-size: 13px !important;
 }
 
