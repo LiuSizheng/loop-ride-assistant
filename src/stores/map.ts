@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import type { BusPosition } from '@/types'
 
 export const useMapStore = defineStore('map', () => {
@@ -11,6 +11,7 @@ export const useMapStore = defineStore('map', () => {
   const mapCenter = ref<[number, number]>([112.99, 28.221])
   const mapZoom = ref(15)
   const visibleRoutes = ref<Set<string>>(new Set(['HX1_NORMAL', 'HX1_DINING', 'HX2_NORMAL', 'HX3_NORMAL']))
+  const visibleRouteList = computed(() => [...visibleRoutes.value])
   const showLabels = ref(true)
 
   function setUserLocation(lat: number, lng: number) {
@@ -66,6 +67,7 @@ export const useMapStore = defineStore('map', () => {
     mapCenter,
     mapZoom,
     visibleRoutes,
+    visibleRouteList,
     showLabels,
     setUserLocation,
     setBusPositions,

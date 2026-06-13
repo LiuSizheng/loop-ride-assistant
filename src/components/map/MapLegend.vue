@@ -11,7 +11,7 @@ const legendItems = [
 ]
 
 function isVisible(key: string): boolean {
-  return mapStore.visibleRoutes.has(key)
+  return mapStore.visibleRouteList.includes(key)
 }
 
 function toggleVisibility(key: string) {
