@@ -80,8 +80,8 @@ function selectStop(name: string) {
 }
 
 // 展开/收起车次卡片
-function toggleBusCard(recordId: string) {
-  expandedBusId.value = expandedBusId.value === recordId ? null : recordId
+function toggleBusCard(key: string) {
+  expandedBusId.value = expandedBusId.value === key ? null : key
 }
 
 // 跳转地图聚焦
@@ -205,8 +205,8 @@ const stopArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in stopArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === (item as any).departure?.recordId }">
-        <div class="bus-card-main" @click="toggleBusCard((item as any).departure?.recordId)">
+      <div v-for="item in stopArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }">
+        <div class="bus-card-main" @click="toggleBusCard('arrival-' + (item as any).departure?.recordId)">
         <div class="bus-card-left">
           <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
@@ -226,7 +226,7 @@ const stopArrivals = computed(() => {
         </div>
         </div>
         <BusStopTimeline
-          v-if="expandedBusId === (item as any).departure?.recordId"
+          v-if="expandedBusId === 'arrival-' + (item as any).departure?.recordId"
           :departure-id="(item as any).departure?.recordId"
           :route-key="(item as any).departure?.routeKey"
           @view-on-map="handleViewOnMap"
@@ -241,8 +241,8 @@ const stopArrivals = computed(() => {
 
     <div v-if="departingSoon.length > 0" class="section">
       <div class="section-title">即将发车</div>
-      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing" :class="{ expanded: expandedBusId === item.departure.recordId }">
-        <div class="bus-card-main" @click="toggleBusCard(item.departure.recordId)">
+      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing" :class="{ expanded: expandedBusId === 'depart-' + item.departure.recordId }">
+        <div class="bus-card-main" @click="toggleBusCard('depart-' + item.departure.recordId)">
         <div class="bus-card-left">
           <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ item.departure.shiftName }}</span>
@@ -254,7 +254,7 @@ const stopArrivals = computed(() => {
         </div>
         </div>
         <BusStopTimeline
-          v-if="expandedBusId === item.departure.recordId"
+          v-if="expandedBusId === 'depart-' + item.departure.recordId"
           :departure-id="item.departure.recordId"
           :route-key="item.departure.routeKey"
           @view-on-map="handleViewOnMap"
