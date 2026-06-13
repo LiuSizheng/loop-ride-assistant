@@ -28,11 +28,13 @@ export const useMapStore = defineStore('map', () => {
   }
 
   function toggleRoute(routeKey: string) {
-    if (visibleRoutes.value.has(routeKey)) {
-      visibleRoutes.value.delete(routeKey)
+    const next = new Set(visibleRoutes.value)
+    if (next.has(routeKey)) {
+      next.delete(routeKey)
     } else {
-      visibleRoutes.value.add(routeKey)
+      next.add(routeKey)
     }
+    visibleRoutes.value = next
   }
 
   function toggleRouteOnly(routeKey: string) {

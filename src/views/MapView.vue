@@ -358,7 +358,7 @@ onUnmounted(() => {
 // 当路线可见性变化时重新渲染站点和折线（公交车由动画循环自动筛选）
 watch(() => mapStore.visibleRoutes, () => {
   renderStops()
-}, { deep: true })
+})
 
 // 当站点标签可见性变化时重新渲染
 watch(() => mapStore.showLabels, () => {
