@@ -186,7 +186,7 @@ const railStyle = computed(() => {
 .bus-on-line {
   position: absolute;
   left: 9px;
-  z-index: 2;
+  z-index: 3;
   transform: translate(-50%, -50%);
   transition: top 0.5s linear;
   pointer-events: none;
@@ -210,6 +210,8 @@ const railStyle = computed(() => {
   align-items: center;
   width: 18px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 2;
 }
 .dot {
   width: 8px;
