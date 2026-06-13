@@ -226,6 +226,7 @@ const displayedArrivals = computed(() => {
         <div class="bus-card-left">
           <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
+          <span class="bus-from" v-if="(item as any).departure?.isGaochaoDeparture">高超楼发车</span>
           <span class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
         </div>
         <div class="bus-card-right" v-if="(item as any).originStop">
