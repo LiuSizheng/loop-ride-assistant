@@ -91,7 +91,7 @@ export function useNextBus() {
     }
 
     results.sort((a, b) => a.secondsUntil - b.secondsUntil)
-    return results.slice(0, 5)
+    return results
   })
 
   function refresh() {
