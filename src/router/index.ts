@@ -13,7 +13,7 @@ const router = createRouter({
       path: '/schedule',
       name: 'schedule',
       component: () => import('@/views/ScheduleView.vue'),
-      meta: { title: '时刻表', tab: 'schedule' },
+      meta: { title: '行程', tab: 'schedule' },
     },
     {
       path: '/stop',

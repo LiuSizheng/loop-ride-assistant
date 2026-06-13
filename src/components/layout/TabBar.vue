@@ -6,7 +6,7 @@ const route = useRoute()
 
 const tabs = [
   { name: 'home', label: '首页', icon: 'home-o', path: '/' },
-  { name: 'schedule', label: '时刻表', icon: 'clock-o', path: '/schedule' },
+  { name: 'schedule', label: '行程', icon: 'clock-o', path: '/schedule' },
   { name: 'upload', label: '记录', icon: 'todo-list-o', path: '/upload' },
   { name: 'map', label: '地图', icon: 'location-o', path: '/map' },
 ]
