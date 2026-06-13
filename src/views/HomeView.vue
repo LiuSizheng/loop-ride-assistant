@@ -29,6 +29,7 @@ const isWeekday = computed(() => dateType.value === 'weekday')
 const stopSearch = ref('')
 const selectedStop = ref<string | null>(null)
 const stopExpanded = ref(false)
+const showAllArrivals = ref(false)
 const expandedBusId = ref<string | null>(null)
 const nowTick = ref(0)  // 用于强制刷新
 const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
@@ -77,6 +78,7 @@ function selectStop(name: string) {
   recordClick(name)
   selectedStop.value = name
   stopSearch.value = ''
+  showAllArrivals.value = false
 }
 
 // 展开/收起车次卡片
@@ -130,8 +132,8 @@ const stopArrivals = computed(() => {
       ? Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
       : Math.round(destPred.arrivalMinutes * 60 - secondsNow.value)
 
-    if (boardSec < -60 || boardSec > 1800) continue
-    if (destPred.arrivalMinutes * 60 - secondsNow.value > 1800) continue
+    if (boardSec < -60 || boardSec > 3600) continue
+    if (destPred.arrivalMinutes * 60 - secondsNow.value > 3600) continue
 
     // 有定位且 origin ≠ dest 时，必须经过上车站
     if (hasGps && originStop && originStop !== destStop && !originPred) continue
@@ -169,7 +171,11 @@ const stopArrivals = computed(() => {
     }
   }
   results.sort((a: any, b: any) => (a.boardSec ?? a.secondsUntil) - (b.boardSec ?? b.secondsUntil))
-  return results.slice(0, 6)
+  return results
+})
+
+const displayedArrivals = computed(() => {
+  return showAllArrivals.value ? stopArrivals.value : stopArrivals.value.slice(0, 10)
 })
 </script>
 
@@ -205,7 +211,7 @@ const stopArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in stopArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }">
+      <div v-for="item in displayedArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }">
         <div class="bus-card-main" @click="toggleBusCard('arrival-' + (item as any).departure?.recordId)">
         <div class="bus-card-left">
           <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
@@ -232,6 +238,9 @@ const stopArrivals = computed(() => {
           :highlight-stop="(item as any).destStop || selectedStop"
           @view-on-map="handleViewOnMap"
         />
+      </div>
+      <div v-if="stopArrivals.length > 10 && !showAllArrivals" class="show-more-btn" @click="showAllArrivals = true">
+        展开更多 {{ stopArrivals.length - 10 }} 趟车次 ↓
       </div>
     </div>
 
@@ -280,6 +289,7 @@ const stopArrivals = computed(() => {
 .no-result { font-size: 13px; color: var(--color-text-secondary); padding: 4px; }
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
+.show-more-btn { text-align: center; padding: 12px; color: var(--color-primary); font-size: 13px; cursor: pointer; user-select: none; }
 .bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
 .bus-card.departing { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-left: 3px solid var(--color-primary); }
 .bus-card.expanded { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
