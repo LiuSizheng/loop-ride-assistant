@@ -80,10 +80,11 @@ const busTopStyle = computed(() => {
   const total = stops.value.length
   if (total <= 1) return '0px'
   if (isBeforeStart) return '0px'
-  if (isAfterEnd) return '0px'  // 隐藏（showBus 会处理）
-  const pct = ((currentIdx + fraction) / (total - 1)) * 100
-  // calc: 百分比相对 stop-list 高度，+11px 补偿到第一个圆点中心
-  return `calc(${pct}% + 11px)`
+  if (isAfterEnd) return '0px'
+  // 将百分比映射到 [第一个圆点中心, 最后一个圆点中心] 区间
+  // 首尾各留 ~11px 余量（圆点半高 + 行间距的一半）
+  const frac = (currentIdx + fraction) / (total - 1)
+  return `calc(${frac * 100}% - ${frac * 22}px + 11px)`
 })
 
 const showBus = computed(() => {
@@ -182,7 +183,7 @@ function lineStyle(idx: number): Record<string, string> {
   left: 9px;
   z-index: 2;
   transform: translate(-50%, -50%);
-  transition: top 0.8s ease;
+  transition: top 0.5s linear;
   pointer-events: none;
 }
 
