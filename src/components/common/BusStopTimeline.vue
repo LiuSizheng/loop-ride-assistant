@@ -256,13 +256,13 @@ const railStyle = computed(() => {
 .stop-name {
   flex: 1;
   color: var(--color-text);
-  padding-top: 4px;
+  margin-top: -6px;
 }
 .stop-time {
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
   font-size: 12px;
-  padding-top: 4px;
+  margin-top: -6px;
 }
 
 .timeline-footer {
