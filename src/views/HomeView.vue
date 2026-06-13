@@ -224,8 +224,10 @@ const displayedArrivals = computed(() => {
       <div v-for="item in displayedArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }">
         <div class="bus-card-main" @click="toggleBusCard('arrival-' + (item as any).departure?.recordId)">
         <div class="bus-card-left">
-          <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
-          <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
+          <div class="route-col">
+            <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
+            <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
+          </div>
           <span v-if="(item as any).departure?.isGaochaoDeparture" class="tags-col">
             <span class="bus-from">高超楼发车</span>
             <span class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
@@ -268,8 +270,10 @@ const displayedArrivals = computed(() => {
       <div class="section-title">即将发车</div>
       <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing">
         <div class="bus-card-left">
-          <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
-          <span class="bus-shift">{{ item.departure.shiftName }}</span>
+          <div class="route-col">
+            <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
+            <span class="bus-shift">{{ item.departure.shiftName }}</span>
+          </div>
           <span class="bus-from" v-if="item.departure.isGaochaoDeparture">高超楼发车</span>
         </div>
         <div class="bus-card-right">
@@ -311,6 +315,7 @@ const displayedArrivals = computed(() => {
 .bus-card-main { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; }
 .bus-card-main:active { background: #F9FAFB; }
 .bus-card-left { display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden; }
+.route-col { display: flex; flex-direction: column; align-items: center; gap: 1px; flex-shrink: 0; }
 .bus-shift { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 .bus-from { font-size: 11px; color: #F59E0B; white-space: nowrap; }
 .tags-col { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.2; }
