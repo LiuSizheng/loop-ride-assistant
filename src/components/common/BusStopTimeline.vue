@@ -9,6 +9,7 @@ const props = defineProps<{
   departureId: string
   routeKey: string
   showMapBtn?: boolean
+  highlightStop?: string
 }>()
 
 const emit = defineEmits<{
@@ -107,7 +108,8 @@ function handleViewOnMap() {
           style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))" />
       </div>
 
-      <div v-for="(stop, idx) in stops" :key="idx" class="stop-row">
+      <div v-for="(stop, idx) in stops" :key="idx" class="stop-row"
+        :class="{ 'is-dest': props.highlightStop && stop.stopName === props.highlightStop }">
         <div class="stop-indicator">
           <div v-if="stop.isDepartureStop" class="dot start">发</div>
           <div v-else-if="stop.isReturnStop" class="dot end">终</div>
@@ -117,7 +119,7 @@ function handleViewOnMap() {
           ></div>
         </div>
         <span class="stop-name">{{ stop.stopName }}</span>
-        <span class="stop-time">{{ stop.arrivalTime }}</span>
+        <span class="stop-time" :class="{ 'is-dest-time': props.highlightStop && stop.stopName === props.highlightStop }">{{ stop.arrivalTime }}</span>
       </div>
     </div>
 
@@ -171,6 +173,23 @@ function handleViewOnMap() {
 .stop-name { flex: 1; color: var(--color-text); }
 .stop-time {
   font-variant-numeric: tabular-nums; color: var(--color-text-secondary); font-size: 12px;
+}
+
+/* 目的地站点高亮 */
+.stop-row.is-dest {
+  background: linear-gradient(90deg, rgba(26,86,219,0.08) 0%, transparent 100%);
+  border-radius: 6px;
+  margin: 2px -8px;
+  padding: 2px 8px;
+}
+.stop-row.is-dest .stop-name {
+  font-weight: 700;
+  color: var(--color-primary);
+}
+.is-dest-time {
+  font-weight: 700;
+  color: var(--color-primary) !important;
+  font-size: 13px !important;
 }
 
 .timeline-footer {

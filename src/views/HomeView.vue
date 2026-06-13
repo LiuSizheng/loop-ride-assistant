@@ -229,6 +229,7 @@ const stopArrivals = computed(() => {
           v-if="expandedBusId === 'arrival-' + (item as any).departure?.recordId"
           :departure-id="(item as any).departure?.recordId"
           :route-key="(item as any).departure?.routeKey"
+          :highlight-stop="(item as any).destStop || selectedStop"
           @view-on-map="handleViewOnMap"
         />
       </div>
