@@ -105,24 +105,29 @@ function handleViewOnMap() {
   emit('view-on-map', props.departureId, props.routeKey)
 }
 
-// 线段样式：已过部分用路线颜色，当前段用渐变进度
-function lineStyle(idx: number): Record<string, string> {
-  const { currentIdx, fraction, isBeforeStart } = busProgress.value
-  if (isBeforeStart) return {}
-  if (idx < currentIdx) return { background: routeColor.value }
-  if (idx === currentIdx) {
-    const pct = Math.round(fraction * 100)
-    return { background: `linear-gradient(to bottom, ${routeColor.value} ${pct}%, #E5E7EB ${pct}%)` }
-  }
-  return {}
-}
+// 单条连续进度条：从首站圆点中心到末站圆点中心
+const railFraction = computed(() => {
+  const { currentIdx, fraction, isBeforeStart, isAfterEnd } = busProgress.value
+  const total = stops.value.length
+  if (total <= 1 || isBeforeStart) return 0
+  if (isAfterEnd) return 1
+  return (currentIdx + fraction) / (total - 1)
+})
+
+const railStyle = computed(() => {
+  const pct = Math.round(railFraction.value * 100)
+  return { background: `linear-gradient(to bottom, ${routeColor.value} ${pct}%, #E5E7EB ${pct}%)` }
+})
 </script>
 
 <template>
   <div class="timeline-root">
     <!-- 站点列表 -->
     <div class="stop-list">
-      <!-- 公交车图标 —— 沿站点序列竖线移动 -->
+      <!-- 单条连续进度条（从首站圆点中心到末站圆点中心） -->
+      <div class="progress-rail" :style="railStyle"></div>
+
+      <!-- 公交车图标 —— 骑在进度条前端 -->
       <div
         v-if="showBus"
         class="bus-on-line"
@@ -140,7 +145,7 @@ function lineStyle(idx: number): Record<string, string> {
         :key="idx"
         class="stop-row"
       >
-        <!-- 圆点 + 线 -->
+        <!-- 圆点（线条变为透明占位，实际进度条由 progress-rail 统一渲染） -->
         <div class="stop-indicator">
           <div v-if="stop.isDepartureStop" class="dot start">发</div>
           <div v-else-if="stop.isReturnStop" class="dot end">终</div>
@@ -150,7 +155,7 @@ function lineStyle(idx: number): Record<string, string> {
             :class="{ passed: idx <= busProgress.currentIdx && !busProgress.isBeforeStart }"
             :style="(idx <= busProgress.currentIdx && !busProgress.isBeforeStart) ? { background: routeColor } : {}"
           ></div>
-          <div v-if="idx < stops.length - 1" class="line" :style="lineStyle(idx)"></div>
+          <div v-if="idx < stops.length - 1" class="spacer"></div>
         </div>
 
         <span class="stop-name">{{ stop.stopName }}</span>
@@ -227,11 +232,22 @@ function lineStyle(idx: number): Record<string, string> {
   font-size: 10px; color: #fff;
   display: flex; align-items: center; justify-content: center;
 }
-.line {
+/* 单条连续进度条 —— 从首站圆点中心到末站圆点中心 */
+.progress-rail {
+  position: absolute;
+  left: 8px;
+  top: 11px;
+  bottom: 11px;
+  width: 2px;
+  z-index: 1;
+  border-radius: 1px;
+}
+/* 透明占位，撑开间距 */
+.spacer {
   width: 2px;
   height: 14px;
-  background: #E5E7EB;
   margin: 2px 0;
+  flex-shrink: 0;
 }
 
 .stop-name {
