@@ -241,8 +241,7 @@ const stopArrivals = computed(() => {
 
     <div v-if="departingSoon.length > 0" class="section">
       <div class="section-title">即将发车</div>
-      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing" :class="{ expanded: expandedBusId === 'depart-' + item.departure.recordId }">
-        <div class="bus-card-main" @click="toggleBusCard('depart-' + item.departure.recordId)">
+      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing">
         <div class="bus-card-left">
           <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ item.departure.shiftName }}</span>
@@ -252,13 +251,6 @@ const stopArrivals = computed(() => {
           <div class="departure-time">{{ item.departure.departureTime }}</div>
           <ETAIndicator :seconds-until="item.secondsUntil" type="departure" />
         </div>
-        </div>
-        <BusStopTimeline
-          v-if="expandedBusId === 'depart-' + item.departure.recordId"
-          :departure-id="item.departure.recordId"
-          :route-key="item.departure.routeKey"
-          @view-on-map="handleViewOnMap"
-        />
       </div>
     </div>
 
@@ -288,7 +280,7 @@ const stopArrivals = computed(() => {
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
 .bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; }
-.bus-card.departing { border-left: 3px solid var(--color-primary); }
+.bus-card.departing { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-left: 3px solid var(--color-primary); }
 .bus-card.expanded { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .bus-card-main { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; }
 .bus-card-main:active { background: #F9FAFB; }
