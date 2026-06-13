@@ -3,6 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useScheduleStore } from '@/stores/schedule'
 import { getDateType } from '@/utils/datetime'
 import { getDateLabel } from '@/utils/holidays'
+import { getNow } from '@/utils/time'
 import type { RouteName, DateType } from '@/types'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import BusStopTimeline from '@/components/common/BusStopTimeline.vue'
@@ -45,7 +46,11 @@ watch(selectedRoute, (r) => {
 })
 
 // ─── 行程规划 ───
-const planDate = ref('')
+function todayStr(): string {
+  const d = getNow()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+const planDate = ref(todayStr())
 const planOrigin = ref('')
 const planDest = ref('')
 const planDeadline = ref('')
@@ -65,7 +70,10 @@ const allStops = computed(() => {
   for (const rp of scheduleStore.routePatterns) {
     for (const s of rp.stops) names.add(s.currentStop)
   }
-  return [...names].sort()
+  // 按首页点击频次排序
+  let freq: Record<string, number> = {}
+  try { freq = JSON.parse(localStorage.getItem('stop_click_freq') || '{}') } catch {}
+  return [...names].sort((a, b) => (freq[b] || 0) - (freq[a] || 0))
 })
 
 // 重置，避免切换模式后不同日期类型混淆
