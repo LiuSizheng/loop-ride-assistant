@@ -78,7 +78,7 @@ export function useNextBus() {
     for (const dep of deps) {
       const secondsAway = Math.round((dep.departureMinutes * 60) - secondsNow.value)
       if (secondsAway < -720) continue
-      if (secondsAway > 1800) continue   // 超过 30 分钟不显示
+      if (secondsAway > 3600) continue   // 超过 60 分钟不显示
       if (secondsAway < -60) continue    // 已发车超 1 分钟移除
 
       const { label, status } = departureCountdown(secondsAway)
