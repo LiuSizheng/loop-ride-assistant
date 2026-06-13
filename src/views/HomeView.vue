@@ -145,6 +145,7 @@ const stopArrivals = computed(() => {
       const { label, status } = isOriginDeparture
         ? departureCountdown(boardSec)
         : arrivalCountdown(boardSec)
+      const departed = (dep.departureMinutes * 60) <= secondsNow.value
       results.push({
         departure: dep,
         originStop,
@@ -155,11 +156,13 @@ const stopArrivals = computed(() => {
         boardStatus: status,
         boardTime: originPred.arrivalTime,
         destArrivalTime: destPred.arrivalTime,
+        departed,
       })
     } else {
       // 直接显示目的地到站信息：排除始发站（这些在「即将发车」中体现）
       if (destPred.isDepartureStop || destPred.isReturnStop) continue
       const { label, status } = arrivalCountdown(boardSec)
+      const departed = (dep.departureMinutes * 60) <= secondsNow.value
       results.push({
         departure: dep,
         destStop,
@@ -167,6 +170,7 @@ const stopArrivals = computed(() => {
         label,
         status,
         arrivalTime: destPred.arrivalTime,
+        departed,
       })
     }
   }
@@ -218,6 +222,7 @@ const displayedArrivals = computed(() => {
           <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
         </div>
         <div class="bus-card-right" v-if="(item as any).originStop">
+          <div class="depart-status" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</div>
           <div class="boarding-info">在「{{ (item as any).originStop }}」上车</div>
           <ETAIndicator
             :seconds-until="(item as any).boardSec"
@@ -227,6 +232,7 @@ const displayedArrivals = computed(() => {
           <div class="dest-info">预计{{ (item as any).destArrivalTime }} 到「{{ (item as any).destStop }}」</div>
         </div>
         <div class="bus-card-right" v-else>
+          <div class="depart-status" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</div>
           <div class="arrival-time">{{ (item as any).arrivalTime }}</div>
           <ETAIndicator :seconds-until="(item as any).secondsUntil" type="arrival" />
         </div>
@@ -299,6 +305,9 @@ const displayedArrivals = computed(() => {
 .bus-shift { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 .bus-from { font-size: 11px; color: #F59E0B; white-space: nowrap; }
 .bus-card-right { text-align: right; flex-shrink: 0; }
+.depart-status { font-size: 11px; padding: 1px 6px; border-radius: 4px; display: inline-block; margin-bottom: 2px; }
+.depart-status.gone { background: #FEE2E2; color: #DC2626; }
+.depart-status.wait { background: #D1FAE5; color: #059669; }
 .arrival-time { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-text); }
 .departure-time { font-size: 20px; font-weight: 700; color: var(--color-primary); }
 .boarding-info { font-size: 12px; color: #10B981; }
