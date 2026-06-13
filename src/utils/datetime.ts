@@ -1,7 +1,6 @@
 import { getDateLabel, isHX1Available } from './holidays'
 import { getNow } from './time'
-
-export type DateType = 'weekday' | 'weekend_holiday'
+import type { DateType } from '@/types'
 
 /**
  * 判断日期类型：工作日 / 周末节假日
@@ -12,29 +11,11 @@ export function getDateType(date?: Date): DateType {
 }
 
 /**
- * 获取日期标签（节日名 > 工作日/周末）
- */
-export function getDateTypeLabel(dateType?: DateType, date?: Date): string {
-  if (date) return getDateLabel(date)
-  return dateType === 'weekday' ? '工作日' : '周末/节假日'
-}
-
-/**
  * 获取当前时间距离 00:00 的秒数
  */
 export function getSecondsSinceMidnight(date?: Date): number {
   const d = date ?? getNow()
   return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()
-}
-
-/**
- * 将分钟数转换为 HH:MM 字符串
- */
-export function minutesToTime(minutes: number): string {
-  const normalized = ((minutes % 1440) + 1440) % 1440
-  const h = Math.floor(normalized / 60)
-  const m = Math.floor(normalized % 60)
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
 /**

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { supabase } from '@/utils/supabase'
 import { useScheduleStore } from '@/stores/schedule'
 import type { DateType } from '@/types'

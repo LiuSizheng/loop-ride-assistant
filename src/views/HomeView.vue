@@ -37,9 +37,15 @@ const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMi
 // 站点点击频次
 const clickFreq = ref<Record<string, number>>({})
 
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   try { clickFreq.value = JSON.parse(localStorage.getItem('stop_click_freq') || '{}') } catch { clickFreq.value = {} }
-  setInterval(() => { refresh(); nowTick.value++ }, 1000)
+  refreshTimer = setInterval(() => { refresh(); nowTick.value++ }, 1000)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer)
 })
 
 function recordClick(stopName: string) {

@@ -22,7 +22,6 @@ export const useScheduleStore = defineStore('schedule', () => {
   const routeStops = ref<Record<string, Array<{ name: string; lng: number; lat: number }>>>({})
 
   // Indexes
-  const departuresByRoute = ref<Map<RouteName, Departure[]>>(new Map())
   const departuresByDateType = ref<Map<DateType, Departure[]>>(new Map())
   const predictionsByStop = ref<Map<string, ArrivalPrediction[]>>(new Map())
   const patternByKey = ref<Map<RouteKey, RoutePattern>>(new Map())
@@ -85,16 +84,6 @@ export const useScheduleStore = defineStore('schedule', () => {
   }
 
   function buildIndexes() {
-    // departuresByRoute
-    const drMap = new Map<RouteName, Departure[]>()
-    for (const r of ['环线1路', '环线2路', '环线3路'] as RouteName[]) {
-      drMap.set(r, [])
-    }
-    for (const d of departures.value) {
-      drMap.get(d.route)?.push(d)
-    }
-    departuresByRoute.value = drMap
-
     // departuresByDateType
     const dtMap = new Map<DateType, Departure[]>()
     dtMap.set('weekday', [])
