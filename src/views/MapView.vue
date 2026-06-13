@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useScheduleStore } from '@/stores/schedule'
 import { useMapStore } from '@/stores/map'
 import { useGeolocation } from '@/composables/useGeolocation'
@@ -15,6 +15,7 @@ import type { BusPosition } from '@/types'
 const scheduleStore = useScheduleStore()
 const mapStore = useMapStore()
 const route = useRoute()
+const router = useRouter()
 useGeolocation()
 
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -28,6 +29,13 @@ let userMarkerInterval: ReturnType<typeof setInterval> | null = null
 
 // 从首页跳转过来的车辆聚焦
 const trackedBusId = ref<string | null>(null)
+const isTracking = computed(() => trackedBusId.value !== null)
+
+function exitFocus() {
+  trackedBusId.value = null
+  mapStore.setAllRoutesVisible()
+  router.replace({ path: '/map' })
+}
 let initializing = false
 
 // ---- 路线颜色 ----
@@ -404,6 +412,9 @@ function recenterOnUser() {
 
     <!-- 定位按钮 -->
     <div class="map-controls">
+      <div v-if="isTracking" class="exit-focus-btn" @click="exitFocus">
+        <span>退出聚焦</span>
+      </div>
       <div class="locate-btn" @click="recenterOnUser">
         <van-icon name="aim" size="20" />
       </div>
@@ -473,6 +484,24 @@ function recenterOnUser() {
   color: var(--color-primary);
 }
 .locate-btn:active {
+  background: #F3F4F6;
+}
+.exit-focus-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  margin-bottom: 10px;
+  background: var(--color-card);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--color-primary);
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  white-space: nowrap;
+  user-select: none;
+}
+.exit-focus-btn:active {
   background: #F3F4F6;
 }
 </style>
