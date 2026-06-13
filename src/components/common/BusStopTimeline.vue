@@ -202,6 +202,7 @@ const railStyle = computed(() => {
   gap: 10px;
   padding: 3px 0;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .stop-indicator {
@@ -255,11 +256,13 @@ const railStyle = computed(() => {
 .stop-name {
   flex: 1;
   color: var(--color-text);
+  padding-top: 4px;
 }
 .stop-time {
   font-variant-numeric: tabular-nums;
   color: var(--color-text-secondary);
   font-size: 12px;
+  padding-top: 4px;
 }
 
 .timeline-footer {
