@@ -15,6 +15,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     StopInfoPanel: typeof import('./src/components/map/StopInfoPanel.vue')['default']
     TabBar: typeof import('./src/components/layout/TabBar.vue')['default']
+    TimeOverride: typeof import('./src/components/dev/TimeOverride.vue')['default']
     VanButton: typeof import('vant/es')['Button']
     VanIcon: typeof import('vant/es')['Icon']
     VanLoading: typeof import('vant/es')['Loading']

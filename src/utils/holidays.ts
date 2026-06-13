@@ -30,7 +30,7 @@ const FALLBACK_WORKDAYS: Set<string> = new Set([
   '2026-09-20', '2026-10-10',
 ])
 
-// ─── 运行态数据 ───
+import { getNow } from './time'
 let holidays: Record<string, string> = { ...FALLBACK_HOLIDAYS }
 let workdaysOnWeekend: Set<string> = new Set(FALLBACK_WORKDAYS)
 let loadedYears: Set<string> = new Set()
@@ -112,7 +112,7 @@ export function initHolidays(): Promise<void> {
 
   initPromise = (async () => {
     loadCache()
-    const currentYear = new Date().getFullYear()
+    const currentYear = getNow().getFullYear()
     const yearsToFetch = [currentYear]
     if (currentYear < 2027) yearsToFetch.push(currentYear + 1)
 
@@ -132,11 +132,12 @@ export function initHolidays(): Promise<void> {
 /**
  * 获取日期标签（节日名 > 工作日/周末）
  */
-export function getDateLabel(date: Date = new Date()): string {
-  const key = dateKey(date)
+export function getDateLabel(date?: Date): string {
+  const d = date ?? getNow()
+  const key = dateKey(d)
   if (holidays[key]) return holidays[key]
   if (workdaysOnWeekend.has(key)) return '工作日'
-  const day = date.getDay()
+  const day = d.getDay()
   if (day === 0 || day === 6) return '周末'
   return '工作日'
 }
@@ -144,6 +145,6 @@ export function getDateLabel(date: Date = new Date()): string {
 /**
  * 判断是否为环线1路可运行日（非节假日非周末的真实工作日）
  */
-export function isHX1Available(date: Date = new Date()): boolean {
+export function isHX1Available(date?: Date): boolean {
   return getDateLabel(date) === '工作日'
 }

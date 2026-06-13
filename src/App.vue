@@ -6,6 +6,7 @@ import { useOnlineStatus } from '@/composables/useOnlineStatus'
 import { initHolidays } from '@/utils/holidays'
 import TabBar from '@/components/layout/TabBar.vue'
 import OfflineBanner from '@/components/common/OfflineBanner.vue'
+import TimeOverride from '@/components/dev/TimeOverride.vue'
 
 const route = useRoute()
 const scheduleStore = useScheduleStore()
@@ -32,6 +33,7 @@ onMounted(() => {
     </router-view>
   </div>
   <TabBar v-if="showTabBar" />
+  <TimeOverride />
 </template>
 
 <style>

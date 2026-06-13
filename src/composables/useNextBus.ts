@@ -4,13 +4,14 @@ import { useMapStore } from '@/stores/map'
 import { getDateType, getSecondsSinceMidnight } from '@/utils/datetime'
 import { findNearestStop } from '@/utils/geo'
 import { arrivalCountdown, departureCountdown } from '@/utils/countdown'
+import { getNow } from '@/utils/time'
 import type { NextBusResult, DateType, RouteName } from '@/types'
 
 export function useNextBus() {
   const scheduleStore = useScheduleStore()
   const mapStore = useMapStore()
   const routeFilter = ref<RouteName | undefined>(undefined)
-  const currentTime = ref(new Date())
+  const currentTime = ref(getNow())
 
   const dateType = computed<DateType>(() => getDateType(currentTime.value))
   const secondsNow = computed(() => getSecondsSinceMidnight(currentTime.value))
@@ -94,7 +95,7 @@ export function useNextBus() {
   })
 
   function refresh() {
-    currentTime.value = new Date()
+    currentTime.value = getNow()
   }
 
   function setRouteFilter(route?: RouteName) {

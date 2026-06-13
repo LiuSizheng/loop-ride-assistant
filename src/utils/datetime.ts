@@ -1,4 +1,5 @@
 import { getDateLabel, isHX1Available } from './holidays'
+import { getNow } from './time'
 
 export type DateType = 'weekday' | 'weekend_holiday'
 
@@ -6,8 +7,8 @@ export type DateType = 'weekday' | 'weekend_holiday'
  * 判断日期类型：工作日 / 周末节假日
  * 结合国务院法定节假日和调休
  */
-export function getDateType(date: Date = new Date()): DateType {
-  return isHX1Available(date) ? 'weekday' : 'weekend_holiday'
+export function getDateType(date?: Date): DateType {
+  return isHX1Available(date ?? getNow()) ? 'weekday' : 'weekend_holiday'
 }
 
 /**
@@ -21,8 +22,9 @@ export function getDateTypeLabel(dateType?: DateType, date?: Date): string {
 /**
  * 获取当前时间距离 00:00 的秒数
  */
-export function getSecondsSinceMidnight(date: Date = new Date()): number {
-  return date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds()
+export function getSecondsSinceMidnight(date?: Date): number {
+  const d = date ?? getNow()
+  return d.getHours() * 3600 + d.getMinutes() * 60 + d.getSeconds()
 }
 
 /**
@@ -38,11 +40,12 @@ export function minutesToTime(minutes: number): string {
 /**
  * 格式化当前日期显示
  */
-export function formatDate(date: Date = new Date()): string {
-  const y = date.getFullYear()
-  const m = date.getMonth() + 1
-  const d = date.getDate()
+export function formatDate(date?: Date): string {
+  const d = date ?? getNow()
+  const y = d.getFullYear()
+  const m = d.getMonth() + 1
+  const d_ = d.getDate()
   const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-  const w = weekDays[date.getDay()]
-  return `${y}年${m}月${d}日 星期${w}`
+  const w = weekDays[d.getDay()]
+  return `${y}年${m}月${d_}日 星期${w}`
 }

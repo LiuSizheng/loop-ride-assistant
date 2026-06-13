@@ -1,6 +1,7 @@
 import type { Departure, RoutePattern, BusPosition, Station } from '@/types'
 import { getSecondsSinceMidnight } from './datetime'
 import { computeBearing } from './geo'
+import { getNow } from './time'
 
 type RoutePath = [number, number][]  // [[lng, lat], ...]
 
@@ -84,9 +85,10 @@ export function computeActiveBusPositions(
   patterns: Map<string, RoutePattern>,
   stations: Station[],
   routePaths: Record<string, RoutePath>,
-  currentDate: Date = new Date()
+  currentDate?: Date
 ): BusPosition[] {
-  const secondsSinceMidnight = getSecondsSinceMidnight(currentDate)
+  const date = currentDate ?? getNow()
+  const secondsSinceMidnight = getSecondsSinceMidnight(date)
   const results: BusPosition[] = []
 
   // 站点名 → 坐标

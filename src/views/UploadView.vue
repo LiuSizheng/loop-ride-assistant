@@ -6,6 +6,7 @@ import { useMapStore } from '@/stores/map'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { findNearestStop } from '@/utils/geo'
 import { showConfirmDialog, showSuccessToast, showFailToast } from 'vant'
+import { getNow } from '@/utils/time'
 
 const uploadStore = useUploadStore()
 const scheduleStore = useScheduleStore()
@@ -124,7 +125,7 @@ async function handleSubmit() {
     route: selectedRoute.value,
     shift: '',
     departTime: '',
-    date: new Date().toISOString().slice(0, 10),
+    date: getNow().toISOString().slice(0, 10),
   })
   if (ok) {
     showSuccessToast('提交成功！')

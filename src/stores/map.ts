@@ -12,15 +12,6 @@ export const useMapStore = defineStore('map', () => {
   const mapZoom = ref(15)
   const visibleRoutes = ref<Set<string>>(new Set(['HX1_NORMAL', 'HX1_DINING', 'HX2_NORMAL', 'HX3_NORMAL']))
   const showLabels = ref(true)
-  const simulatedMinutes = ref<number | null>(null)
-  function getSimulatedDate(): Date {
-    if (simulatedMinutes.value === null) return new Date()
-    const d = new Date()
-    const h = Math.floor(simulatedMinutes.value / 60)
-    const m = Math.floor(simulatedMinutes.value % 60)
-    d.setHours(h, m, d.getSeconds(), d.getMilliseconds())
-    return d
-  }
 
   function setUserLocation(lat: number, lng: number) {
     userLat.value = lat
@@ -59,10 +50,6 @@ export const useMapStore = defineStore('map', () => {
     visibleRoutes.value = new Set<string>()
   }
 
-  function setSimulatedTime(minutes: number | null) {
-    simulatedMinutes.value = minutes
-  }
-
   function recenterOnUser() {
     if (userLat.value !== null && userLng.value !== null) {
       mapCenter.value = [userLng.value, userLat.value]
@@ -80,8 +67,6 @@ export const useMapStore = defineStore('map', () => {
     mapZoom,
     visibleRoutes,
     showLabels,
-    simulatedMinutes,
-    getSimulatedDate,
     setUserLocation,
     setBusPositions,
     selectStop,
@@ -90,7 +75,6 @@ export const useMapStore = defineStore('map', () => {
     toggleLabels,
     setAllRoutesVisible,
     clearAllRoutes,
-    setSimulatedTime,
     recenterOnUser,
   }
 })

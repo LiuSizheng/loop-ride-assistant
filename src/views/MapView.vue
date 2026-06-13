@@ -6,6 +6,7 @@ import { useGeolocation } from '@/composables/useGeolocation'
 import { getDateType, getSecondsSinceMidnight } from '@/utils/datetime'
 import { computeActiveBusPositions } from '@/utils/bus_position'
 import { loadAMap } from '@/utils/amap'
+import { getNow } from '@/utils/time'
 import MapLegend from '@/components/map/MapLegend.vue'
 import StopInfoPanel from '@/components/map/StopInfoPanel.vue'
 import type { BusPosition } from '@/types'
@@ -198,7 +199,7 @@ function animateBusPositions() {
     return
   }
 
-  const currentDate = mapStore.getSimulatedDate()
+  const currentDate = getNow()
   const dateType = getDateType(currentDate)
   const deps = scheduleStore.getDepartures(dateType)
   const patternMap = new Map(
@@ -345,21 +346,6 @@ function recenterOnUser() {
     mapInstance.setZoom(16)
   }
 }
-
-// 时间模拟
-const timePresets = [
-  { label: '实时', minutes: null },
-  { label: '07:30', minutes: 7 * 60 + 30 },
-  { label: '08:00', minutes: 8 * 60 },
-  { label: '09:00', minutes: 9 * 60 },
-  { label: '11:30', minutes: 11 * 60 + 30 },
-  { label: '14:00', minutes: 14 * 60 },
-  { label: '17:00', minutes: 17 * 60 },
-]
-
-function setTimePreset(minutes: number | null) {
-  mapStore.setSimulatedTime(minutes)
-}
 </script>
 
 <template>
@@ -381,22 +367,6 @@ function setTimePreset(minutes: number | null) {
 
     <!-- 地图容器 -->
     <div ref="mapContainer" class="map-container" />
-
-    <!-- 时间模拟面板 -->
-    <div class="time-panel">
-      <div class="time-panel-label">
-        {{ mapStore.simulatedMinutes !== null ? '模拟时间' : '实时' }}
-      </div>
-      <div class="time-presets">
-        <span
-          v-for="preset in timePresets"
-          :key="preset.label"
-          class="time-preset-btn"
-          :class="{ active: mapStore.simulatedMinutes === preset.minutes }"
-          @click="setTimePreset(preset.minutes)"
-        >{{ preset.label }}</span>
-      </div>
-    </div>
 
     <!-- 图例 -->
     <MapLegend />
@@ -473,45 +443,5 @@ function setTimePreset(minutes: number | null) {
 }
 .locate-btn:active {
   background: #F3F4F6;
-}
-
-.time-panel {
-  position: absolute;
-  bottom: 60px;
-  left: 12px;
-  z-index: 60;
-  background: rgba(255, 255, 255, 0.94);
-  border-radius: 10px;
-  padding: 8px 10px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-}
-.time-panel-label {
-  font-size: 11px;
-  color: var(--color-text-secondary);
-  margin-bottom: 4px;
-  text-align: center;
-}
-.time-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.time-preset-btn {
-  padding: 2px 8px;
-  background: #F3F4F6;
-  border-radius: 12px;
-  font-size: 12px;
-  cursor: pointer;
-  color: var(--color-text);
-  white-space: nowrap;
-  user-select: none;
-  transition: background 0.15s;
-}
-.time-preset-btn.active {
-  background: var(--color-primary);
-  color: #fff;
-}
-.time-preset-btn:active {
-  background: #E5E7EB;
 }
 </style>
