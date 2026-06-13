@@ -53,9 +53,10 @@ function todayStr(): string {
 const planDate = ref(todayStr())
 const planOrigin = ref('')
 const planDest = ref('')
-const planDeadline = ref('')
+const planDeadline = ref('20:00')
 const planResults = ref<any[]>([])
-
+const planShowAll = ref(false)
+const planDisplayed = computed(() => planShowAll.value ? planResults.value : planResults.value.slice(0, 10))
 const planDateType = computed<DateType>(() => {
   if (!planDate.value) return getDateType()
   return getDateType(new Date(planDate.value + 'T00:00:00+08:00'))
@@ -110,8 +111,9 @@ function doSearch() {
       })
     }
   }
-  results.sort((a, b) => a.destMinutes - b.destMinutes)
+  results.sort((a, b) => b.destMinutes - a.destMinutes)
   planResults.value = results
+  planShowAll.value = false
 }
 
 // 行程规划的下拉展开
@@ -158,8 +160,8 @@ function togglePlanExpand(recordId: string) {
 
       <!-- 结果 -->
       <div v-if="planResults.length > 0" class="plan-results">
-        <div class="plan-result-title">找到 {{ planResults.length }} 趟车次</div>
-        <div v-for="(r, i) in planResults" :key="i" class="plan-card" :class="{ expanded: planExpandedId === r.departure.recordId }">
+        <div class="plan-result-title">找到 {{ planResults.length }} 趟车次（按到达时间从晚到早排列）</div>
+        <div v-for="(r, i) in planDisplayed" :key="i" class="plan-card" :class="{ expanded: planExpandedId === r.departure.recordId }">
           <div class="plan-card-top" @click="togglePlanExpand(r.departure.recordId)">
             <RouteBadge :route="r.departure.route" :dining="r.departure.routeKey === 'HX1_DINING'" />
             <span class="plan-shift">{{ r.departure.shiftName }}</span>
@@ -186,6 +188,9 @@ function togglePlanExpand(recordId: string) {
             :show-map-btn="false"
           />
         </div>
+      </div>
+      <div v-if="planResults.length > 10 && !planShowAll" class="plan-expand" @click="planShowAll = true">
+        展开查看更早到达的 {{ planResults.length - 10 }} 趟车次 ↓
       </div>
       <div v-else-if="planOrigin && planDest && planDeadline && planDate" class="plan-empty">该时段无可乘线路</div>
     </div>
@@ -273,6 +278,10 @@ function togglePlanExpand(recordId: string) {
 .plan-step-text { font-size: 13px; color: var(--color-text); }
 .plan-step-text strong { color: var(--color-primary); }
 .plan-empty { text-align: center; padding: 24px; color: var(--color-text-secondary); font-size: 13px; }
+.plan-expand {
+  text-align: center; padding: 12px; color: var(--color-primary);
+  font-size: 13px; cursor: pointer; user-select: none;
+}
 
 /* 总时刻表 */
 .date-toggle { display: flex; gap: 10px; padding: 12px 16px; background: var(--color-card); }
