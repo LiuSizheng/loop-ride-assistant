@@ -226,8 +226,11 @@ const displayedArrivals = computed(() => {
         <div class="bus-card-left">
           <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
           <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
-          <span class="bus-from" v-if="(item as any).departure?.isGaochaoDeparture">高超楼发车</span>
-          <span class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
+          <span v-if="(item as any).departure?.isGaochaoDeparture" class="tags-col">
+            <span class="bus-from">高超楼发车</span>
+            <span class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
+          </span>
+          <span v-else class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
         </div>
         <div class="bus-card-right" v-if="(item as any).originStop">
           <div class="boarding-info">在「{{ (item as any).originStop }}」上车</div>
@@ -310,6 +313,7 @@ const displayedArrivals = computed(() => {
 .bus-card-left { display: flex; align-items: center; gap: 8px; flex: 1; overflow: hidden; }
 .bus-shift { font-size: 13px; color: var(--color-text-secondary); white-space: nowrap; }
 .bus-from { font-size: 11px; color: #F59E0B; white-space: nowrap; }
+.tags-col { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.2; }
 .bus-card-right { text-align: right; flex-shrink: 0; }
 .depart-tag { font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
 .depart-tag.gone { background: #D1FAE5; color: #059669; }
