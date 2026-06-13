@@ -97,6 +97,18 @@ const BASE_URL = import.meta.env.BASE_URL
 function handleViewOnMap() {
   emit('view-on-map', props.departureId, props.routeKey)
 }
+
+// 判断是否应高亮：同名站只高亮最后一次出现（终点站，非始发站）
+function isHighlighted(stopName: string, idx: number): boolean {
+  if (!props.highlightStop || stopName !== props.highlightStop) return false
+  const s = stops.value
+  // 查找同名站的最后一次出现
+  let lastIdx = idx
+  for (let i = idx + 1; i < s.length; i++) {
+    if (s[i].stopName === stopName) lastIdx = i
+  }
+  return idx === lastIdx
+}
 </script>
 
 <template>
@@ -111,7 +123,7 @@ function handleViewOnMap() {
       </div>
 
       <div v-for="(stop, idx) in stops" :key="idx" class="stop-row"
-        :class="{ 'is-dest': props.highlightStop && stop.stopName === props.highlightStop }">
+        :class="{ 'is-dest': isHighlighted(stop.stopName, idx) }">
         <div class="stop-indicator">
           <div v-if="stop.isDepartureStop" class="dot start">发</div>
           <div v-else-if="stop.isReturnStop" class="dot end">终</div>
@@ -121,7 +133,7 @@ function handleViewOnMap() {
           ></div>
         </div>
         <span class="stop-name">{{ stop.stopName }}</span>
-        <span class="stop-time" :class="{ 'is-dest-time': props.highlightStop && stop.stopName === props.highlightStop }">{{ stop.arrivalTime }}</span>
+        <span class="stop-time" :class="{ 'is-dest-time': isHighlighted(stop.stopName, idx) }">{{ stop.arrivalTime }}</span>
       </div>
     </div>
 
