@@ -98,21 +98,21 @@ function handleViewOnMap() {
 
 <template>
   <div class="timeline-root">
-    <!-- 公交车图标 —— 沿垂直时间线移动 -->
-    <div
-      v-if="showBus"
-      class="bus-on-line"
-      :style="{ top: busTopPercent + '%' }"
-    >
-      <img
-        :src="`${BASE_URL}${iconFile}`"
-        width="20" height="20"
-        style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))"
-      />
-    </div>
-
     <!-- 站点列表 -->
     <div class="stop-list">
+      <!-- 公交车图标 —— 沿站点序列竖线移动 -->
+      <div
+        v-if="showBus"
+        class="bus-on-line"
+        :style="{ top: busTopPercent + '%' }"
+      >
+        <img
+          :src="`${BASE_URL}${iconFile}`"
+          width="20" height="20"
+          style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))"
+        />
+      </div>
+
       <div
         v-for="(stop, idx) in stops"
         :key="idx"
@@ -158,7 +158,7 @@ function handleViewOnMap() {
 /* 公交车在垂直线上 */
 .bus-on-line {
   position: absolute;
-  left: 17px;  /* 对齐 stop-indicator 中心（26px padding - 9px half indicator width） */
+  left: 9px;
   z-index: 2;
   transform: translate(-50%, -50%);
   transition: top 0.8s ease;
@@ -167,6 +167,7 @@ function handleViewOnMap() {
 
 .stop-list {
   position: relative;
+  padding-top: 12px;
 }
 
 .stop-row {
