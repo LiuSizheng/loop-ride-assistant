@@ -321,6 +321,11 @@ onMounted(async () => {
       layers: [new (window as any).AMap.TileLayer.Satellite()],
     })
 
+    // 重置为全部路线可见（避免上次 query 参数残留）
+    if (!route.query.route) {
+      mapStore.setAllRoutesVisible()
+    }
+
     renderStops()
     animFrameId = requestAnimationFrame(animateBusPositions)
     userMarkerInterval = setInterval(updateUserMarker, 5000)
