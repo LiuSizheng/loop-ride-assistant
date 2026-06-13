@@ -5,12 +5,14 @@ import { getNow } from '@/utils/time'
 import { getSecondsSinceMidnight } from '@/utils/datetime'
 import type { ArrivalPrediction } from '@/types'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   departureId: string
   routeKey: string
   showMapBtn?: boolean
   highlightStop?: string
-}>()
+}>(), {
+  showMapBtn: true,
+})
 
 const emit = defineEmits<{
   'view-on-map': [departureId: string, routeKey: string]
