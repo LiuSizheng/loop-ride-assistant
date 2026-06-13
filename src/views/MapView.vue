@@ -326,8 +326,7 @@ onMounted(async () => {
     initializing = true
     const q = route.query
     if (q.route) {
-      mapStore.clearAllRoutes()
-      mapStore.toggleRoute(q.route as string)
+      mapStore.toggleRouteOnly(q.route as string)
     } else {
       mapStore.setAllRoutesVisible()
     }
