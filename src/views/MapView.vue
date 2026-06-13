@@ -324,7 +324,8 @@ onMounted(async () => {
     // 先处理 query 参数（首页联动），再渲染，避免重复绘制
     const q = route.query
     if (q.route) {
-      mapStore.toggleRouteOnly(q.route as string)
+      mapStore.clearAllRoutes()
+      mapStore.toggleRoute(q.route as string)
     } else {
       mapStore.setAllRoutesVisible()
     }
