@@ -17,6 +17,7 @@ const routeOptions = ['环线1路', '环线2路', '环线3路', '就餐专线']
 
 // 手动选择上车站
 const manualBoard = ref('')
+const showStopPicker = ref(false)
 
 // 当路线变化时，预设为检测到的最近站
 watch(() => autoStore.detectedStopName, (name) => {
@@ -108,11 +109,20 @@ onMounted(() => {
       <!-- 上车站点检测/选择 -->
       <div class="field-row" v-if="hasGps">
         <span class="label">上车</span>
-        <van-dropdown-menu>
-          <van-dropdown-item v-model="manualBoard" :options="autoStore.routeStopOptions.map(s => ({ text: s, value: s }))" />
-        </van-dropdown-menu>
-        <span v-if="autoStore.detectedStopName && manualBoard === autoStore.detectedStopName" class="auto-detect">自动检测</span>
+        <span class="board-select" @click="showStopPicker = true">
+          {{ manualBoard || '检测中...' }}
+          <van-icon name="arrow-down" size="12" />
+        </span>
+        <span v-if="autoStore.detectedStopName && manualBoard === autoStore.detectedStopName" class="auto-detect">自动</span>
       </div>
+
+      <van-popup v-model:show="showStopPicker" round position="bottom">
+        <van-picker
+          :columns="autoStore.routeStopOptions"
+          @confirm="(v: any) => { manualBoard = v.selectedValues?.[0] || v; showStopPicker = false }"
+          @cancel="showStopPicker = false"
+        />
+      </van-popup>
 
       <van-button
         type="primary"
@@ -227,6 +237,7 @@ onMounted(() => {
 .board-info { font-size: 12px; color: #10B981; padding: 4px 0 10px; }
 .nearest-hint { color: #8B5CF6; }
 .auto-detect { font-size: 11px; color: #10B981; white-space: nowrap; }
+.board-select { padding: 4px 10px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
 
 /* stop timeline */
 .stop-timeline { position: relative; }
