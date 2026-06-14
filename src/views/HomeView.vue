@@ -73,7 +73,10 @@ const nearestStop = computed(() => {
   return result?.station ?? null
 })
 watch(nearestStop, (stop) => {
-  if (stop && !selectedStop.value) { selectedStop.value = stop.name }
+  // 有 GPS 时不自动选中最近站（让用户手动选目的地）
+  if (stop && !selectedStop.value && mapStore.userLat === null) {
+    selectedStop.value = stop.name
+  }
 }, { immediate: true })
 
 function selectStop(name: string) {
@@ -90,6 +93,9 @@ function selectStop(name: string) {
 // 展开/收起车次卡片
 function toggleBusCard(key: string) {
   expandedBusId.value = expandedBusId.value === key ? null : key
+}
+function busCardKey(item: any): string {
+  return 'arrival-' + item.departure?.recordId + '-' + (item.candidateStop || '')
 }
 
 // 跳转地图聚焦
@@ -250,8 +256,8 @@ const displayedArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in displayedArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).candidateStop || ''}-${(item as any).destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
-        <div class="bus-card-main" @click="toggleBusCard('arrival-' + (item as any).departure?.recordId)">
+      <div v-for="item in displayedArrivals" :key="busCardKey((item as any))" class="bus-card" :class="{ expanded: expandedBusId === busCardKey((item as any)) }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
+        <div class="bus-card-main" @click="toggleBusCard(busCardKey((item as any)))">
         <div class="bus-card-left">
           <div class="route-col">
             <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
@@ -278,7 +284,7 @@ const displayedArrivals = computed(() => {
         </div>
         </div>
         <BusStopTimeline
-          v-if="expandedBusId === 'arrival-' + (item as any).departure?.recordId"
+          v-if="expandedBusId === busCardKey((item as any))"
           :departure-id="(item as any).departure?.recordId"
           :route-key="(item as any).departure?.routeKey"
           :highlight-stop="(item as any).destStop || selectedStop"
@@ -291,9 +297,10 @@ const displayedArrivals = computed(() => {
       </div>
     </div>
 
-    <div v-if="!selectedStop && !mapStore.userLat" class="gps-card">
+    <div v-if="!selectedStop" class="gps-card">
       <van-icon name="location-o" size="20" />
-      <span>开启定位后自动推荐最近上车站点</span>
+      <span v-if="!mapStore.userLat">开启定位后自动推荐最近上车站点</span>
+      <span v-else>已定位到「{{ nearestStop?.name }}」附近，请选择目的地查看推荐车次</span>
     </div>
 
     <div v-if="departingSoon.length > 0" class="section">
