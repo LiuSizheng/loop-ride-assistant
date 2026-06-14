@@ -135,22 +135,16 @@ onMounted(() => {
       </div>
 
       <!-- 上车站点检测/选择 -->
-      <div class="field-row" v-if="hasGps">
+      <div class="field-row" v-if="hasGps && pickerStops.length > 0">
         <span class="label">上车</span>
         <span class="board-select" @click="showStopPicker = true">
-          {{ manualBoard || '检测中...' }}
+          {{ manualBoard || detectedStop || '选择站点' }}
           <van-icon name="arrow-down" size="12" />
         </span>
         <span v-if="detectedStop && manualBoard === detectedStop" class="auto-detect">自动</span>
       </div>
 
-      <van-popup v-model:show="showStopPicker" round position="bottom">
-        <van-picker
-          :columns="pickerStops"
-          @confirm="(v: any) => { manualBoard = v.selectedValues?.[0] || v; showStopPicker = false }"
-          @cancel="showStopPicker = false"
-        />
-      </van-popup>
+      <van-action-sheet v-model:show="showStopPicker" :actions="pickerStops.map(s => ({ name: s }))" @select="(a: any) => { manualBoard = a.name; showStopPicker = false }" />
 
       <van-button
         type="primary"
