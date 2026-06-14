@@ -1,0 +1,267 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { useScheduleStore } from '@/stores/schedule'
+import { useUploadStore } from '@/stores/upload'
+import { haversineDistance, computeMinDistanceToPath } from '@/utils/geo'
+import { getNow } from '@/utils/time'
+import type { TimeSegment } from './upload'
+
+export type SessionState = 'idle' | 'active' | 'paused' | 'completed'
+
+export const useAutoRecordStore = defineStore('autoRecord', () => {
+  const scheduleStore = useScheduleStore()
+  const uploadStore = useUploadStore()
+
+  // ---- 状态 ----
+  const sessionState = ref<SessionState>('idle')
+  const selectedRoute = ref('')
+  const routeKey = ref('')
+  const stops = ref<Array<{ name: string; lng: number; lat: number }>>([])
+  const boardStopIndex = ref(-1)
+  const currentStopIndex = ref(-1) // 下一个要到达的站
+  const segments = ref<TimeSegment[]>([])
+  const segmentStartTime = ref<number | null>(null) // Date.now()
+  const sessionStartTime = ref(0)
+  const totalPausedMs = ref(0)
+  const pauseStartTime = ref<number | null>(null)
+  const arrivalInRangeSince = ref<number | null>(null)
+  const leaveOutOfRangeSince = ref<number | null>(null)
+  const lastLat = ref<number | null>(null)
+  const lastLng = ref<number | null>(null)
+  const error = ref<string | null>(null)
+  const submitOk = ref(false)
+
+  // ---- 计算 ----
+  const tick = ref(0)
+  function bumpTick() { tick.value++ }
+
+  const totalElapsedMs = computed(() => {
+    void tick.value
+    if (sessionState.value === 'idle') return 0
+    if (sessionStartTime.value === 0) return 0
+    let elapsed = Date.now() - sessionStartTime.value - totalPausedMs.value
+    if (pauseStartTime.value) elapsed -= (Date.now() - pauseStartTime.value)
+    return Math.max(0, elapsed)
+  })
+
+  const currentSegmentElapsedMs = computed(() => {
+    void tick.value
+    if (!segmentStartTime.value || sessionState.value !== 'active') return 0
+    return Math.max(0, Date.now() - segmentStartTime.value)
+  })
+
+  const currentStop = computed(() => {
+    if (currentStopIndex.value < 0 || currentStopIndex.value >= stops.value.length) return null
+    return stops.value[currentStopIndex.value]
+  })
+
+  const allSegmentsRecorded = computed(() => {
+    // 最后一个是终点（环线首尾同站），倒数第二站到达即完成
+    return currentStopIndex.value >= stops.value.length - 1
+  })
+
+  const stopsDisplay = computed(() => {
+    return stops.value.map((s, idx) => {
+      let status: 'boarding' | 'passed' | 'current' | 'upcoming' = 'upcoming'
+      if (idx === boardStopIndex.value) status = 'boarding'
+      else if (idx < currentStopIndex.value && idx > boardStopIndex.value) status = 'passed'
+      else if (idx === currentStopIndex.value && sessionState.value === 'active') status = 'current'
+
+      let elapsedSec: number | undefined
+      if (status === 'passed') {
+        // 找到这个站作为 toStop 的 segment
+        const seg = segments.value.find(s => s.to === stops.value[idx]?.name)
+        if (seg) elapsedSec = seg.seconds
+      }
+      return { ...s, status, elapsedSec, idx }
+    })
+  })
+
+  /** 上车站名 */
+  const boardStopName = computed(() => {
+    if (boardStopIndex.value < 0 || boardStopIndex.value >= stops.value.length) return ''
+    return stops.value[boardStopIndex.value].name
+  })
+
+  // ---- 动作 ----
+
+  function startSession(route: string) {
+    const rk = ROUTE_TO_KEY[route] || ''
+    if (!rk) { error.value = '无法识别路线'; return }
+
+    const stopList = scheduleStore.routeStops[rk]
+    if (!stopList || stopList.length < 2) { error.value = '路线站点数据不足'; return }
+
+    // 找最近站作为上车站
+    let boardIdx = 0
+    let minDist = Infinity
+    if (lastLat.value !== null && lastLng.value !== null) {
+      for (let i = 0; i < stopList.length - 1; i++) {
+        const d = haversineDistance(lastLat.value, lastLng.value, stopList[i].lat, stopList[i].lng)
+        if (d < minDist) { minDist = d; boardIdx = i }
+      }
+    }
+
+    reset()
+    selectedRoute.value = route
+    routeKey.value = rk
+    stops.value = stopList.map(s => ({ name: s.name, lng: s.lng, lat: s.lat }))
+    boardStopIndex.value = boardIdx
+    currentStopIndex.value = boardIdx + 1
+    sessionState.value = 'active'
+    sessionStartTime.value = Date.now()
+    segmentStartTime.value = Date.now()
+    error.value = null
+    submitOk.value = false
+  }
+
+  function processGpsUpdate(lat: number, lng: number, ts: number) {
+    if (sessionState.value !== 'active') return
+    lastLat.value = lat
+    lastLng.value = lng
+
+    const stop = stops.value[currentStopIndex.value]
+    if (!stop) return
+
+    // ---- 到站检测 ----
+    const distToStop = haversineDistance(lat, lng, stop.lat, stop.lng)
+    if (distToStop <= 30) {
+      if (arrivalInRangeSince.value === null) {
+        arrivalInRangeSince.value = ts
+      } else if (ts - arrivalInRangeSince.value >= 3000) {
+        recordArrival()
+        return
+      }
+    } else {
+      arrivalInRangeSince.value = null
+    }
+
+    // ---- 离开路线检测 ----
+    const path = scheduleStore.routePaths[routeKey.value]
+    if (path && path.length > 0) {
+      const minPathDist = computeMinDistanceToPath(lat, lng, path)
+      if (minPathDist > 50) {
+        if (leaveOutOfRangeSince.value === null) {
+          leaveOutOfRangeSince.value = ts
+        }
+        // composable 负责 10 秒倒计时
+      } else {
+        leaveOutOfRangeSince.value = null
+      }
+    }
+  }
+
+  function recordArrival() {
+    const stop = stops.value[currentStopIndex.value]
+    if (!stop || !segmentStartTime.value) return
+
+    const elapsed = Math.round((Date.now() - segmentStartTime.value) / 1000)
+    const fromName = stops.value[currentStopIndex.value - 1]?.name || boardStopName.value
+
+    segments.value.push({ from: fromName, to: stop.name, seconds: elapsed })
+    segmentStartTime.value = Date.now()
+    currentStopIndex.value++
+    arrivalInRangeSince.value = null
+
+    if (allSegmentsRecorded.value) {
+      finishSession('complete')
+    }
+  }
+
+  function pauseSession() {
+    if (sessionState.value !== 'active') return
+    sessionState.value = 'paused'
+    pauseStartTime.value = Date.now()
+  }
+
+  function resumeSession() {
+    if (sessionState.value !== 'paused') return
+    if (pauseStartTime.value) {
+      totalPausedMs.value += Date.now() - pauseStartTime.value
+      pauseStartTime.value = null
+    }
+    sessionState.value = 'active'
+    arrivalInRangeSince.value = null
+    leaveOutOfRangeSince.value = null
+  }
+
+  function manualLeave() {
+    // 将当前未完成的段也记录（如果有经过时间）
+    if (segmentStartTime.value && currentStopIndex.value < stops.value.length) {
+      const elapsed = Math.round((Date.now() - segmentStartTime.value) / 1000)
+      if (elapsed > 0) {
+        const fromName = stops.value[currentStopIndex.value - 1]?.name || boardStopName.value
+        const toName = stops.value[currentStopIndex.value]?.name || '下车点'
+        segments.value.push({ from: fromName, to: toName, seconds: elapsed })
+      }
+    }
+    finishSession('manual_leave')
+  }
+
+  function autoLeave() {
+    // 和 manualLeave 一样逻辑
+    manualLeave()
+  }
+
+  async function finishSession(reason: string) {
+    sessionState.value = 'completed'
+    error.value = null
+
+    if (segments.value.length > 0 && uploadStore.nickname) {
+      try {
+        // 将 autoRecord 的 segments 注入 uploadStore
+        uploadStore.recordedSegments = segments.value.map(s => ({ ...s }))
+        const ok = await uploadStore.submit({
+          route: selectedRoute.value,
+          shift: '',
+          departTime: '',
+          date: getNow().toISOString().slice(0, 10),
+        })
+        submitOk.value = ok
+        if (!ok) error.value = '提交失败，请检查网络后重试'
+      } catch {
+        error.value = '提交失败，请检查网络后重试'
+      }
+    } else if (!uploadStore.nickname) {
+      error.value = '请先在手动记录中设置昵称'
+    }
+  }
+
+  function reset() {
+    sessionState.value = 'idle'
+    selectedRoute.value = ''
+    routeKey.value = ''
+    stops.value = []
+    boardStopIndex.value = -1
+    currentStopIndex.value = -1
+    segments.value = []
+    segmentStartTime.value = null
+    sessionStartTime.value = 0
+    totalPausedMs.value = 0
+    pauseStartTime.value = null
+    arrivalInRangeSince.value = null
+    leaveOutOfRangeSince.value = null
+    error.value = null
+    submitOk.value = false
+  }
+
+  const ROUTE_TO_KEY: Record<string, string> = {
+    '环线1路': 'HX1_NORMAL',
+    '环线2路': 'HX2_NORMAL',
+    '环线3路': 'HX3_NORMAL',
+    '就餐专线': 'HX1_DINING',
+  }
+
+  return {
+    sessionState, selectedRoute, routeKey, stops, boardStopIndex, currentStopIndex,
+    segments, segmentStartTime, sessionStartTime, totalPausedMs, pauseStartTime,
+    arrivalInRangeSince, leaveOutOfRangeSince, lastLat, lastLng, error, submitOk,
+    totalElapsedMs, currentSegmentElapsedMs, currentStop, allSegmentsRecorded,
+    stopsDisplay, boardStopName, tick: bumpTick,
+    startSession, processGpsUpdate, pauseSession, resumeSession,
+    manualLeave, autoLeave, finishSession, reset, recordArrival,
+  }
+})
+
+// Re-export TimeSegment from upload store for convenience
+export type { TimeSegment }

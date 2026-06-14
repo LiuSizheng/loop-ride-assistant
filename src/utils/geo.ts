@@ -126,3 +126,49 @@ export function computeBearing(
   const bearing = (Math.atan2(y, x) * 180) / Math.PI
   return (bearing + 360) % 360
 }
+
+/**
+ * 点到线段的最短距离（米）
+ */
+function pointToSegmentDistance(
+  lat: number, lng: number,
+  lat1: number, lng1: number,
+  lat2: number, lng2: number
+): number {
+  // 使用平面近似（校园尺度误差可忽略）
+  const dx = lng2 - lng1
+  const dy = lat2 - lat1
+  if (dx === 0 && dy === 0) return haversineDistance(lat, lng, lat1, lng1)
+
+  const t = Math.max(0, Math.min(1,
+    ((lng - lng1) * dx + (lat - lat1) * dy) / (dx * dx + dy * dy)
+  ))
+  const projLng = lng1 + t * dx
+  const projLat = lat1 + t * dy
+  return haversineDistance(lat, lng, projLat, projLng)
+}
+
+/**
+ * 计算点到折线路径的最短距离（米）
+ * 用于判断用户是否已远离公交车路线（下车检测）
+ */
+export function computeMinDistanceToPath(
+  lat: number,
+  lng: number,
+  path: [number, number][]  // [[lng, lat], ...]
+): number {
+  if (path.length === 0) return Infinity
+  if (path.length === 1) return haversineDistance(lat, lng, path[0][1], path[0][0])
+
+  let minDist = Infinity
+  // 窗口搜索：从上次最近段索引附近开始
+  for (let i = 0; i < path.length - 1; i++) {
+    const d = pointToSegmentDistance(
+      lat, lng,
+      path[i][1], path[i][0],
+      path[i + 1][1], path[i + 1][0]
+    )
+    if (d < minDist) minDist = d
+  }
+  return minDist
+}
