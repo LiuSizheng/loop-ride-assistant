@@ -47,6 +47,14 @@ const scheduleStore = useScheduleStore()
         <li>系统工程学院发车统一按"高超楼"站处理</li>
       </ul>
     </div>
+    <div class="section feedback">
+      <h3>反馈意见</h3>
+      <p>如有建议或问题，欢迎填写问卷：</p>
+      <a class="survey-link" href="https://v.wjx.cn/vm/thRw5hx.aspx" target="_blank" rel="noopener">
+        <van-icon name="smile-comment-o" />
+        <span>使用反馈问卷 →</span>
+      </a>
+    </div>
   </div>
 </template>
 
@@ -102,4 +110,23 @@ const scheduleStore = useScheduleStore()
   border-radius: 4px;
   font-size: 12px;
 }
+
+.feedback {
+  text-align: center;
+}
+.survey-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 10px 20px;
+  background: var(--color-primary);
+  color: #fff;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.survey-link:active { opacity: 0.8; }
 </style>
