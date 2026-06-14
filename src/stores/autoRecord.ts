@@ -261,6 +261,7 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     pauseStartTime.value = null
     arrivalInRangeSince.value = null
     leaveOutOfRangeSince.value = null
+    skipNextArrival.value = false
     error.value = null
     submitOk.value = false
   }
