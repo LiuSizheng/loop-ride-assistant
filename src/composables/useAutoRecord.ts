@@ -94,8 +94,8 @@ export function useAutoRecord() {
   }
 
   // ---- 开始 ----
-  function startRecording(route: string) {
-    autoStore.startSession(route)
+  function startRecording(route: string, manualStop?: string) {
+    autoStore.startSession(route, manualStop)
     if (autoStore.sessionState === 'active') {
       acquireWakeLock()
       startTick()

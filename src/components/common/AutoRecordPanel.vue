@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAutoRecordStore } from '@/stores/autoRecord'
 import { useMapStore } from '@/stores/map'
 import { useUploadStore } from '@/stores/upload'
@@ -15,6 +15,20 @@ const { startRecording, resumeRecording, stopRecording, cancelRecording } = useA
 const selectedRoute = ref('环线1路')
 const routeOptions = ['环线1路', '环线2路', '环线3路', '就餐专线']
 
+// 手动选择上车站
+const manualBoard = ref('')
+
+// 当路线变化时，预设为检测到的最近站
+watch(() => autoStore.detectedStopName, (name) => {
+  if (autoStore.sessionState === 'idle' && name) {
+    manualBoard.value = name
+  }
+})
+watch(selectedRoute, () => {
+  // 路线切换时重置选择，等 detectedStopName 更新
+  manualBoard.value = autoStore.detectedStopName || ''
+})
+
 const hasGps = computed(() => mapStore.userLat !== null)
 
 function formatTime(ms: number): string {
@@ -27,7 +41,7 @@ function formatTime(ms: number): string {
 
 function handleStart() {
   if (!hasGps.value) return
-  startRecording(selectedRoute.value)
+  startRecording(selectedRoute.value, manualBoard.value || undefined)
 }
 
 async function handleStop() {
@@ -89,6 +103,15 @@ onMounted(() => {
       <div v-if="!hasGps" class="gps-warn">
         <van-icon name="warning-o" />
         <span>请开启GPS定位后开始自动记录</span>
+      </div>
+
+      <!-- 上车站点检测/选择 -->
+      <div class="field-row" v-if="hasGps">
+        <span class="label">上车</span>
+        <van-dropdown-menu>
+          <van-dropdown-item v-model="manualBoard" :options="autoStore.routeStopOptions.map(s => ({ text: s, value: s }))" />
+        </van-dropdown-menu>
+        <span v-if="autoStore.detectedStopName && manualBoard === autoStore.detectedStopName" class="auto-detect">自动检测</span>
       </div>
 
       <van-button
@@ -203,6 +226,7 @@ onMounted(() => {
 .recording-time { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-primary); }
 .board-info { font-size: 12px; color: #10B981; padding: 4px 0 10px; }
 .nearest-hint { color: #8B5CF6; }
+.auto-detect { font-size: 11px; color: #10B981; white-space: nowrap; }
 
 /* stop timeline */
 .stop-timeline { position: relative; }

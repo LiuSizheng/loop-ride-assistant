@@ -84,6 +84,31 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     return stops.value[boardStopIndex.value].name
   })
 
+  // 手动覆盖的上车站点
+  const manualBoardStop = ref('')
+
+  /** 开始前检测到的最近站点 */
+  const detectedStopName = computed(() => {
+    if (lastLat.value === null || lastLng.value === null) return ''
+    const stopList = scheduleStore.routeStops[routeKey.value]
+    if (!stopList || stopList.length === 0) return ''
+    let best = ''
+    let bestD = Infinity
+    for (let i = 0; i < stopList.length - 1; i++) {
+      const d = haversineDistance(lastLat.value, lastLng.value, stopList[i].lat, stopList[i].lng)
+      if (d < bestD) { bestD = d; best = stopList[i].name }
+    }
+    return bestD < 100 ? best : ''
+  })
+
+  /** 当前路线站点列表（用于选择器） */
+  const routeStopOptions = computed(() => {
+    if (!routeKey.value) return []
+    const stopList = scheduleStore.routeStops[routeKey.value]
+    if (!stopList) return []
+    return stopList.slice(0, -1).map(s => s.name) // 排除终点站
+  })
+
   /** GPS 当前最靠近的站点名 */
   const nearestStopName = computed(() => {
     void tick.value
@@ -99,17 +124,20 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
 
   // ---- 动作 ----
 
-  function startSession(route: string) {
+  function startSession(route: string, manualStop?: string) {
     const rk = ROUTE_TO_KEY[route] || ''
     if (!rk) { error.value = '无法识别路线'; return }
 
     const stopList = scheduleStore.routeStops[rk]
     if (!stopList || stopList.length < 2) { error.value = '路线站点数据不足'; return }
 
-    // 找最近站作为上车站
+    // 找最近站作为上车站（如用户手动选了则优先）
     let boardIdx = 0
-    let minDist = Infinity
-    if (lastLat.value !== null && lastLng.value !== null) {
+    if (manualStop) {
+      boardIdx = stopList.findIndex(s => s.name === manualStop)
+      if (boardIdx < 0 || boardIdx >= stopList.length - 1) boardIdx = 0
+    } else if (lastLat.value !== null && lastLng.value !== null) {
+      let minDist = Infinity
       for (let i = 0; i < stopList.length - 1; i++) {
         const d = haversineDistance(lastLat.value, lastLng.value, stopList[i].lat, stopList[i].lng)
         if (d < minDist) { minDist = d; boardIdx = i }
@@ -275,6 +303,7 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     arrivalInRangeSince.value = null
     leaveOutOfRangeSince.value = null
     skipNextArrival.value = false
+    manualBoardStop.value = ''
     error.value = null
     submitOk.value = false
   }
@@ -291,7 +320,7 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     segments, segmentStartTime, sessionStartTime, totalPausedMs, pauseStartTime,
     arrivalInRangeSince, leaveOutOfRangeSince, lastLat, lastLng, error, submitOk,
     totalElapsedMs, currentSegmentElapsedMs, currentStop, allSegmentsRecorded,
-    stopsDisplay, boardStopName, nearestStopName, tick: bumpTick,
+    stopsDisplay, boardStopName, nearestStopName, detectedStopName, routeStopOptions, manualBoardStop, tick: bumpTick,
     startSession, processGpsUpdate, pauseSession, resumeSession,
     manualLeave, autoLeave, finishSession, reset, recordArrival,
   }
