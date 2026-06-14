@@ -2,10 +2,13 @@
   "name": "环线坐车 - 校园环线时刻表",
   "short_name": "环线坐车",
   "description": "校园环线公交车时刻表与到站预测",
+  "id": "/loop-ride-assistant/",
   "start_url": "/loop-ride-assistant/",
+  "scope": "/loop-ride-assistant/",
   "display": "standalone",
+  "display_override": ["standalone"],
   "launch_handler": {
-    "client_mode": "navigate-existing"
+    "client_mode": "focus-existing"
   },
   "background_color": "#F3F4F6",
   "theme_color": "#1A56DB",
