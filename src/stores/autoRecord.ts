@@ -84,6 +84,19 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     return stops.value[boardStopIndex.value].name
   })
 
+  /** GPS 当前最靠近的站点名 */
+  const nearestStopName = computed(() => {
+    void tick.value
+    if (lastLat.value === null || lastLng.value === null || stops.value.length === 0) return ''
+    let bestName = ''
+    let bestDist = Infinity
+    for (const s of stops.value) {
+      const d = haversineDistance(lastLat.value, lastLng.value, s.lat, s.lng)
+      if (d < bestDist) { bestDist = d; bestName = s.name }
+    }
+    return bestDist < 100 ? bestName : ''
+  })
+
   // ---- 动作 ----
 
   function startSession(route: string) {
@@ -278,7 +291,7 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     segments, segmentStartTime, sessionStartTime, totalPausedMs, pauseStartTime,
     arrivalInRangeSince, leaveOutOfRangeSince, lastLat, lastLng, error, submitOk,
     totalElapsedMs, currentSegmentElapsedMs, currentStop, allSegmentsRecorded,
-    stopsDisplay, boardStopName, tick: bumpTick,
+    stopsDisplay, boardStopName, nearestStopName, tick: bumpTick,
     startSession, processGpsUpdate, pauseSession, resumeSession,
     manualLeave, autoLeave, finishSession, reset, recordArrival,
   }

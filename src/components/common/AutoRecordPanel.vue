@@ -126,6 +126,7 @@ onMounted(() => {
       <!-- 上车站提示 -->
       <div class="board-info" v-if="autoStore.boardStopName">
         已从「{{ autoStore.boardStopName }}」上车
+        <span v-if="autoStore.nearestStopName" class="nearest-hint"> · 当前靠近「{{ autoStore.nearestStopName }}」</span>
       </div>
 
       <!-- 站点进度 -->
@@ -201,6 +202,7 @@ onMounted(() => {
 .recording-dot { width: 8px; height: 8px; border-radius: 50%; background: #DC2626; animation: pulse 1.5s ease-in-out infinite; }
 .recording-time { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--color-primary); }
 .board-info { font-size: 12px; color: #10B981; padding: 4px 0 10px; }
+.nearest-hint { color: #8B5CF6; }
 
 /* stop timeline */
 .stop-timeline { position: relative; }
