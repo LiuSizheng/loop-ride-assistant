@@ -130,7 +130,7 @@ const stopArrivals = computed(() => {
 
   // 有 GPS：搜索最近 3 个站点作为候选上车点
   if (hasGps) {
-    const candidates = findNearestStops(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations, 3, 500)
+    const candidates = findNearestStops(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations, 3, 200)
     if (candidates.length === 0) {
       // 500m 内没有站点，退回到单一最近站点
       const fallback = findNearestStop(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations)
