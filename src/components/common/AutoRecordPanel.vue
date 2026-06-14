@@ -2,15 +2,23 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAutoRecordStore } from '@/stores/autoRecord'
 import { useMapStore } from '@/stores/map'
+import { useScheduleStore } from '@/stores/schedule'
 import { useUploadStore } from '@/stores/upload'
 import { useAutoRecord } from '@/composables/useAutoRecord'
+import { haversineDistance } from '@/utils/geo'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import { showConfirmDialog } from 'vant'
 
 const autoStore = useAutoRecordStore()
 const mapStore = useMapStore()
+const scheduleStore = useScheduleStore()
 const uploadStore = useUploadStore()
 const { startRecording, resumeRecording, stopRecording, cancelRecording } = useAutoRecord()
+
+const ROUTE_TO_KEY: Record<string, string> = {
+  '环线1路': 'HX1_NORMAL', '环线2路': 'HX2_NORMAL',
+  '环线3路': 'HX3_NORMAL', '就餐专线': 'HX1_DINING',
+}
 
 const selectedRoute = ref('环线1路')
 const routeOptions = ['环线1路', '环线2路', '环线3路', '就餐专线']
@@ -19,15 +27,35 @@ const routeOptions = ['环线1路', '环线2路', '环线3路', '就餐专线']
 const manualBoard = ref('')
 const showStopPicker = ref(false)
 
-// 当路线变化时，预设为检测到的最近站
-watch(() => autoStore.detectedStopName, (name) => {
-  if (autoStore.sessionState === 'idle' && name) {
+// 当前路线可选站点
+const pickerStops = computed(() => {
+  const rk = ROUTE_TO_KEY[selectedRoute.value] || ''
+  const list = scheduleStore.routeStops[rk]
+  return list ? list.slice(0, -1).map(s => s.name) : []
+})
+
+// 根据GPS检测最近站
+const detectedStop = computed(() => {
+  if (mapStore.userLat === null || mapStore.userLng === null) return ''
+  const rk = ROUTE_TO_KEY[selectedRoute.value] || ''
+  const list = scheduleStore.routeStops[rk]
+  if (!list) return ''
+  let best = ''; let bestD = Infinity
+  for (let i = 0; i < list.length - 1; i++) {
+    const d = haversineDistance(mapStore.userLat, mapStore.userLng, list[i].lat, list[i].lng)
+    if (d < bestD) { bestD = d; best = list[i].name }
+  }
+  return bestD < 100 ? best : ''
+})
+
+// 自动预填检测到的站
+watch(detectedStop, (name) => {
+  if (name && !manualBoard.value) {
     manualBoard.value = name
   }
 })
 watch(selectedRoute, () => {
-  // 路线切换时重置选择，等 detectedStopName 更新
-  manualBoard.value = autoStore.detectedStopName || ''
+  manualBoard.value = detectedStop.value || ''
 })
 
 const hasGps = computed(() => mapStore.userLat !== null)
@@ -113,12 +141,12 @@ onMounted(() => {
           {{ manualBoard || '检测中...' }}
           <van-icon name="arrow-down" size="12" />
         </span>
-        <span v-if="autoStore.detectedStopName && manualBoard === autoStore.detectedStopName" class="auto-detect">自动</span>
+        <span v-if="detectedStop && manualBoard === detectedStop" class="auto-detect">自动</span>
       </div>
 
       <van-popup v-model:show="showStopPicker" round position="bottom">
         <van-picker
-          :columns="autoStore.routeStopOptions"
+          :columns="pickerStops"
           @confirm="(v: any) => { manualBoard = v.selectedValues?.[0] || v; showStopPicker = false }"
           @cancel="showStopPicker = false"
         />
