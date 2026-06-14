@@ -136,7 +136,9 @@ const stopArrivals = computed(() => {
     if (isNearby) {
       // 和默认视图一样：只展示这个站的到站车次
       for (const p of preds) {
-        if (p.isReturnStop) continue
+        // 环线起终点同站：isDepartureStop 是发车不是到站，isReturnStop 是绕一圈回来
+        // 两者都不适合作为"到达此站"展示，保留中途经过的到站记录即可
+        if (p.isReturnStop || p.isDepartureStop) continue
         const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
         if (!dep) continue
         const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
@@ -164,6 +166,10 @@ const stopArrivals = computed(() => {
       if (fallback) candidates.push(fallback)
     }
 
+    // 去重：preds 中同一 departure 可能有 isDepartureStop + isReturnStop 两条
+    // （如 HX3_GAOCHAO 起终点同站 高超楼），只需保留一条
+    const seenDepartureIds = new Set<string>()
+
     for (const c of candidates) {
       const candidateStop = c.station.name
       if (candidateStop === destStop) continue // 已经在目的地，跳过
@@ -171,6 +177,8 @@ const stopArrivals = computed(() => {
       const walkSeconds = c.distance / WALK_SPEED
 
       for (const p of preds) {
+        // 同一车次只展示一次（首选最近的上车站点）
+        if (seenDepartureIds.has(p.departureId)) continue
         const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
         if (!dep) continue
 
@@ -217,6 +225,7 @@ const stopArrivals = computed(() => {
           destArrivalTime: destPred.arrivalTime,
           departed,
         })
+        seenDepartureIds.add(p.departureId)
       }
     }
   } else {

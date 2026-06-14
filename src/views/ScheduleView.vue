@@ -94,8 +94,9 @@ function doSearch() {
         .filter(p => p.departureId === dep.recordId)
         .sort((a, b) => a.stopSeq - b.stopSeq)
       const originIdx = preds.findIndex(p => p.stopName === planOrigin.value)
-      const destIdx = preds.findIndex(p => p.stopName === planDest.value)
-      if (originIdx < 0 || destIdx < 0 || originIdx >= destIdx) continue
+      if (originIdx < 0) continue
+      const destIdx = preds.findIndex((p, i) => i > originIdx && p.stopName === planDest.value)
+      if (destIdx < 0) continue
       const destPred = preds[destIdx]
       if (destPred.arrivalMinutes > deadlineMin) continue
       const originPred = preds[originIdx]

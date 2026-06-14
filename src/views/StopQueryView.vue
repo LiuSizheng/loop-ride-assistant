@@ -28,6 +28,7 @@ const arrivals = computed(() => {
   const preds = scheduleStore.getPredictionsForStop(selectedStop.value, dateType.value)
 
   return preds
+    .filter(p => !p.isDepartureStop && !p.isReturnStop)
     .map((p) => {
       let delta = p.arrivalMinutes * 60 - secondsNow.value
       if (delta < -3600) return null

@@ -98,7 +98,6 @@ function createBusIconContent(routeKey: string, shiftName: string, heading: numb
 // ---- 站点渲染 ----
 function renderStops() {
   if (!mapInstance) return
-  if (!mapInstance) return
   stopMarkers.forEach((m) => m.remove())
   stopMarkers = []
   routePolylines.forEach((p) => p.remove())

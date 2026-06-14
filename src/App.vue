@@ -13,7 +13,7 @@ const scheduleStore = useScheduleStore()
 const { isOnline } = useOnlineStatus()
 
 const showTabBar = computed(() => {
-  const tabRoutes = ['home', 'schedule', 'upload', 'map']
+  const tabRoutes = ['home', 'schedule', 'stop', 'upload', 'map']
   return tabRoutes.includes((route.meta.tab as string) || '')
 })
 
