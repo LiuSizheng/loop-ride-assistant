@@ -266,8 +266,8 @@ watch(selectedRoute, () => {
             </div>
             <div class="history-segs">
               <template v-for="(seg, i) in rec.segments" :key="i">
-                <span v-if="i === 0" class="hseg">{{ seg.from }}</span>
-                <span class="hseg">→{{ seg.seconds }}s→{{ seg.to }}</span>
+                <span class="hseg">{{ seg.from }}→{{ seg.seconds }}s→{{ seg.to }}</span>
+                <span v-if="i < rec.segments.length - 1" class="hseg-sep">  </span>
               </template>
             </div>
           </div>
