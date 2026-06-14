@@ -8,7 +8,7 @@ import { useScheduleStore } from '@/stores/schedule'
 import { useMapStore } from '@/stores/map'
 import { formatDate, getDateType } from '@/utils/datetime'
 import { getDateLabel } from '@/utils/holidays'
-import { findNearestStop } from '@/utils/geo'
+import { findNearestStop, findNearestStops, formatWalkTime } from '@/utils/geo'
 import { getSecondsSinceMidnight } from '@/utils/datetime'
 import { arrivalCountdown, departureCountdown } from '@/utils/countdown'
 import RouteBadge from '@/components/common/RouteBadge.vue'
@@ -113,83 +113,103 @@ const stopArrivals = computed(() => {
   const preds = scheduleStore.getPredictionsForStop(destStop, dateType.value)
   const results: any[] = []
 
-  // 判断是否有用户定位，用于推荐最近上车点
   const hasGps = mapStore.userLat !== null
-  let originStop = ''
+  const WALK_SPEED = 1.3 // m/s
+
+  // 有 GPS：搜索最近 3 个站点作为候选上车点
   if (hasGps) {
-    const result = findNearestStop(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations)
-    originStop = result?.station.name ?? ''
-  }
+    const candidates = findNearestStops(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations, 3, 500)
+    if (candidates.length === 0) {
+      // 500m 内没有站点，退回到单一最近站点
+      const fallback = findNearestStop(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations)
+      if (fallback) candidates.push(fallback)
+    }
 
-  // 收集所有经过目的地的 departureId 集合
-  const seenDep = new Set<string>()
-  for (const p of preds) {
-    if (seenDep.has(p.departureId)) continue
-    const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
-    if (!dep) continue
+    for (const c of candidates) {
+      const candidateStop = c.station.name
+      if (candidateStop === destStop) continue // 已经在目的地，跳过
 
-    // 找到该车次在上车站的预测
-    const originPred = (hasGps && originStop && originStop !== destStop)
-      ? scheduleStore.predictions.find(
-          pp => pp.departureId === p.departureId && pp.stopName === originStop
+      const walkSeconds = c.distance / WALK_SPEED
+
+      for (const p of preds) {
+        const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
+        if (!dep) continue
+
+        // 该车次是否经过这个候选上车点（且在上车点之后才到目的地）
+        const candidatePred = scheduleStore.predictions.find(
+          pp => pp.departureId === p.departureId && pp.stopName === candidateStop
         )
-      : null
+        if (!candidatePred) continue
 
-    // 找到该车次在目的地且 stopSeq 大于上车站的预测（确保是同一趟车到了上车点之后才到目的地）
-    const destPred = scheduleStore.predictions.find(
-      pp => pp.departureId === p.departureId
-        && pp.stopName === destStop
-        && (!originPred || pp.stopSeq > originPred.stopSeq)
-    )
-    if (!destPred) continue
+        const destPred = scheduleStore.predictions.find(
+          pp => pp.departureId === p.departureId
+            && pp.stopName === destStop
+            && pp.stopSeq > candidatePred.stopSeq
+        )
+        if (!destPred) continue
 
-    const boardSec = originPred
-      ? Math.round(originPred.arrivalMinutes * 60 - secondsNow.value)
-      : Math.round(destPred.arrivalMinutes * 60 - secondsNow.value)
+        const secondsUntilCandidate = Math.round(candidatePred.arrivalMinutes * 60 - secondsNow.value)
+        const secondsUntilDest = Math.round(destPred.arrivalMinutes * 60 - secondsNow.value)
 
-    if (boardSec < -60 || boardSec > 3600) continue
-    if (destPred.arrivalMinutes * 60 - secondsNow.value > 3600) continue
+        // 步行赶不上这趟车 → 跳过
+        if (walkSeconds > secondsUntilCandidate) continue
+        // 目的地到站超过 1 小时 → 跳过
+        if (secondsUntilDest > 3600) continue
+        // 已过站超过 1 分钟 → 跳过
+        if (secondsUntilCandidate < -60) continue
 
-    // 有定位且 origin ≠ dest 时，必须经过上车站
-    if (hasGps && originStop && originStop !== destStop && !originPred) continue
+        const isOriginDeparture = candidatePred.isDepartureStop ?? false
+        const { label, status } = isOriginDeparture
+          ? departureCountdown(secondsUntilCandidate)
+          : arrivalCountdown(secondsUntilCandidate)
+        const departed = (dep.departureMinutes * 60) <= secondsNow.value
 
-    seenDep.add(p.departureId)
+        results.push({
+          departure: dep,
+          candidateStop,
+          destStop,
+          walkSeconds,
+          walkLabel: formatWalkTime(walkSeconds),
+          isOriginDeparture,
+          boardSec: secondsUntilCandidate,
+          boardLabel: label,
+          boardStatus: status,
+          boardTime: candidatePred.arrivalTime,
+          destArrivalTime: destPred.arrivalTime,
+          departed,
+        })
+      }
+    }
+  } else {
+    // 无 GPS：回退到现有逻辑，只显示经过目的地的车次（不含出发站信息）
+    for (const p of preds) {
+      const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
+      if (!dep) continue
+      if (p.isDepartureStop || p.isReturnStop) continue
 
-    if (hasGps && originStop && originStop !== destStop && originPred) {
-      const isOriginDeparture = originPred.isDepartureStop ?? false
-      const { label, status } = isOriginDeparture
-        ? departureCountdown(boardSec)
-        : arrivalCountdown(boardSec)
+      const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
+      if (secondsUntil < -60 || secondsUntil > 3600) continue
+
+      const { label, status } = arrivalCountdown(secondsUntil)
       const departed = (dep.departureMinutes * 60) <= secondsNow.value
       results.push({
         departure: dep,
-        originStop,
         destStop,
-        isOriginDeparture,
-        boardSec,
-        boardLabel: label,
-        boardStatus: status,
-        boardTime: originPred.arrivalTime,
-        destArrivalTime: destPred.arrivalTime,
-        departed,
-      })
-    } else {
-      // 直接显示目的地到站信息：排除始发站（这些在「即将发车」中体现）
-      if (destPred.isDepartureStop || destPred.isReturnStop) continue
-      const { label, status } = arrivalCountdown(boardSec)
-      const departed = (dep.departureMinutes * 60) <= secondsNow.value
-      results.push({
-        departure: dep,
-        destStop,
-        secondsUntil: boardSec,
+        secondsUntil,
         label,
         status,
-        arrivalTime: destPred.arrivalTime,
+        arrivalTime: p.arrivalTime,
         departed,
       })
     }
   }
-  results.sort((a: any, b: any) => (a.boardSec ?? a.secondsUntil) - (b.boardSec ?? b.secondsUntil))
+
+  results.sort((a: any, b: any) => {
+    // 按目的地预计到站时间排序
+    const aTime = a.destArrivalTime || a.arrivalTime || ''
+    const bTime = b.destArrivalTime || b.arrivalTime || ''
+    return aTime.localeCompare(bTime)
+  })
   return results
 })
 
@@ -230,7 +250,7 @@ const displayedArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in displayedArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).destStop || item.destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
+      <div v-for="item in displayedArrivals" :key="`${(item as any).departure?.recordId}-${(item as any).candidateStop || ''}-${(item as any).destStop || ''}`" class="bus-card" :class="{ expanded: expandedBusId === 'arrival-' + (item as any).departure?.recordId }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
         <div class="bus-card-main" @click="toggleBusCard('arrival-' + (item as any).departure?.recordId)">
         <div class="bus-card-left">
           <div class="route-col">
@@ -243,8 +263,8 @@ const displayedArrivals = computed(() => {
           </span>
           <span v-else class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
         </div>
-        <div class="bus-card-right" v-if="(item as any).originStop">
-          <div class="boarding-info">在「{{ (item as any).originStop }}」上车</div>
+        <div class="bus-card-right" v-if="(item as any).candidateStop">
+          <div class="boarding-info">{{ (item as any).walkLabel }}到「{{ (item as any).candidateStop }}」</div>
           <ETAIndicator
             :seconds-until="(item as any).boardSec"
             :type="(item as any).isOriginDeparture ? 'departure' : 'arrival'"
@@ -262,6 +282,7 @@ const displayedArrivals = computed(() => {
           :departure-id="(item as any).departure?.recordId"
           :route-key="(item as any).departure?.routeKey"
           :highlight-stop="(item as any).destStop || selectedStop"
+          :highlight-origin="(item as any).candidateStop"
           @view-on-map="handleViewOnMap"
         />
       </div>

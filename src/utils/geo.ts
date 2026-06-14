@@ -80,6 +80,36 @@ export function findNearestStop(
 }
 
 /**
+ * 找到距离用户最近的 N 个站点（仅在 maxDistanceM 范围内）
+ */
+export function findNearestStops(
+  userLat: number,
+  userLng: number,
+  stations: Station[],
+  maxCount = 3,
+  maxDistanceM = 500
+): { station: Station; distance: number }[] {
+  const results: { station: Station; distance: number }[] = []
+  for (const s of stations) {
+    const d = haversineDistance(userLat, userLng, s.lat, s.lng)
+    if (d <= maxDistanceM) results.push({ station: s, distance: d })
+  }
+  results.sort((a, b) => a.distance - b.distance)
+  return results.slice(0, maxCount)
+}
+
+/**
+ * 格式化步行时间（精确到秒）
+ */
+export function formatWalkTime(seconds: number): string {
+  const s = Math.round(seconds)
+  if (s < 60) return `步行约${s}秒`
+  const min = Math.floor(s / 60)
+  const sec = s % 60
+  return `步行约${min}分${sec}秒`
+}
+
+/**
  * 计算两点之间的方位角（度）
  */
 export function computeBearing(
