@@ -404,8 +404,8 @@ const nearbyStopArrivals = computed(() => {
           @view-on-map="handleViewOnMap"
         />
       </div>
-      <div v-if="stopArrivals.length > 10 && !showAllArrivals" class="show-more-btn" @click="showAllArrivals = true">
-        展开更多 {{ stopArrivals.length - 10 }} 趟车次 ↓
+      <div v-if="stopArrivals.length > 10" class="show-more-btn" @click="showAllArrivals = !showAllArrivals">
+        {{ showAllArrivals ? '收起 ▲' : `展开更多 ${stopArrivals.length - 10} 趟车次 ↓` }}
       </div>
     </div>
 
