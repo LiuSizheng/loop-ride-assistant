@@ -64,11 +64,9 @@ export function useAutoRecord() {
       if ('wakeLock' in navigator) {
         wakeLock = await (navigator as any).wakeLock.request('screen')
         wakeLock?.addEventListener('release', () => {
-          // OS 释放了 wakeLock（如省电模式）→ 暂停
-          if (autoStore.sessionState === 'active') {
-            autoStore.pauseSession()
-          }
-        })
+        // OS 释放了 wakeLock（如省电模式），静默处理
+        wakeLock = null
+      })
       }
     } catch {
       // wakeLock 不可用，忽略
