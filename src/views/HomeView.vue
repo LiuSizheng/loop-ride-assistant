@@ -128,8 +128,35 @@ const stopArrivals = computed(() => {
   const hasGps = mapStore.userLat !== null
   const WALK_SPEED = 1.3 // m/s
 
-  // 有 GPS：搜索最近 3 个站点作为候选上车点
   if (hasGps) {
+    // 检查选中的站点是否在 200m 范围内 → 展示该站过站车次（非多起点）
+    const isNearby = findNearestStops(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations, 3, 200)
+      .some(c => c.station.name === destStop)
+
+    if (isNearby) {
+      // 和默认视图一样：只展示这个站的到站车次
+      for (const p of preds) {
+        if (p.isDepartureStop || p.isReturnStop) continue
+        const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
+        if (!dep) continue
+        const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
+        if (secondsUntil < -60 || secondsUntil > 3600) continue
+        const { label, status } = arrivalCountdown(secondsUntil)
+        results.push({
+          departure: dep,
+          destStop,
+          secondsUntil,
+          label,
+          status,
+          arrivalTime: p.arrivalTime,
+          departed: (dep.departureMinutes * 60) <= secondsNow.value,
+        })
+      }
+      results.sort((a: any, b: any) => a.secondsUntil - b.secondsUntil)
+      return results
+    }
+
+    // 远距离目的地：多起点搜索
     const candidates = findNearestStops(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations, 3, 200)
     if (candidates.length === 0) {
       // 500m 内没有站点，退回到单一最近站点
@@ -386,7 +413,6 @@ const nearbyStopArrivals = computed(() => {
       <van-icon name="location-o" size="20" />
       <span v-if="!mapStore.userLat">开启定位后自动推荐最近上车站点</span>
       <span v-else-if="nearbyStopArrivals.length === 0">已定位到「{{ nearestStop?.name }}」附近，请选择目的地查看推荐车次</span>
-      <span v-else>已定位，以下为周边各站即将到站车次</span>
     </div>
 
     <div v-if="departingSoon.length > 0" class="section">
