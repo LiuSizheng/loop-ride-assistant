@@ -17,7 +17,14 @@ export function useAutoRecord() {
     if (tickTimer) return
     tickTimer = setInterval(() => {
       autoStore.tick()
-      // 检查离开路线倒计时
+      // 到站检测：即使 GPS 没更新，也检查是否已驻留 3 秒
+      if (autoStore.sessionState === 'active') {
+        const inRange = autoStore.arrivalInRangeSince
+        if (inRange !== null && Date.now() - inRange >= 3000) {
+          autoStore.recordArrival()
+        }
+      }
+      // 离开路线检测
       const leaveSince = autoStore.leaveOutOfRangeSince
       if (leaveSince !== null && autoStore.sessionState === 'active') {
         if (Date.now() - leaveSince >= 10000) {
