@@ -267,7 +267,7 @@ watch(selectedRoute, () => {
             <div class="history-segs">
               <template v-for="(seg, i) in rec.segments" :key="i">
                 <span class="hseg">{{ seg.from }}→{{ seg.seconds }}s→{{ seg.to }}</span>
-                <span v-if="i < rec.segments.length - 1" class="hseg-sep">  </span>
+                <span v-if="i < rec.segments.length - 1" class="hseg-gap"></span>
               </template>
             </div>
           </div>
@@ -312,4 +312,5 @@ watch(selectedRoute, () => {
 .history-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
 .history-segs { font-size: 12px; color: var(--color-text-secondary); line-height: 1.8; word-break: break-all; }
 .hseg { white-space: normal; }
+.hseg-gap { display: inline-block; width: 1em; }
 </style>
