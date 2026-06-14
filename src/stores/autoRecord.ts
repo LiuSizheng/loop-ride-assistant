@@ -124,7 +124,9 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     // ---- 错站检测：切后台期间可能跳过了一些站 ----
     let bestStopIdx = currentStopIndex.value
     let bestDist = Infinity
-    for (let i = currentStopIndex.value; i < stops.value.length; i++) {
+    // 不检查最后一站（环线首尾同站，人在起点会误触发）
+    const maxCheckIdx = stops.value.length - 2
+    for (let i = currentStopIndex.value; i <= maxCheckIdx; i++) {
       const d = haversineDistance(lat, lng, stops.value[i].lat, stops.value[i].lng)
       if (d < bestDist) { bestDist = d; bestStopIdx = i }
     }
