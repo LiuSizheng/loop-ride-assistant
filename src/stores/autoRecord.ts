@@ -26,6 +26,7 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
   const pauseStartTime = ref<number | null>(null)
   const arrivalInRangeSince = ref<number | null>(null)
   const leaveOutOfRangeSince = ref<number | null>(null)
+  const skipNextArrival = ref(false) // 错站恢复后，下个到站不记录（桥接段无意义）
   const lastLat = ref<number | null>(null)
   const lastLng = ref<number | null>(null)
   const error = ref<string | null>(null)
@@ -133,6 +134,7 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
       segmentStartTime.value = Date.now()
       arrivalInRangeSince.value = null
       leaveOutOfRangeSince.value = null
+      skipNextArrival.value = true // 桥接段不记录
     }
 
     const stop = stops.value[currentStopIndex.value]
@@ -170,13 +172,20 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     const stop = stops.value[currentStopIndex.value]
     if (!stop || !segmentStartTime.value) return
 
-    const elapsed = Math.round((Date.now() - segmentStartTime.value) / 1000)
-    const fromName = stops.value[currentStopIndex.value - 1]?.name || boardStopName.value
-
-    segments.value.push({ from: fromName, to: stop.name, seconds: elapsed })
-    segmentStartTime.value = Date.now()
-    currentStopIndex.value++
-    arrivalInRangeSince.value = null
+    if (skipNextArrival.value) {
+      // 错站恢复后的桥接段：不记录，只重置计时
+      skipNextArrival.value = false
+      segmentStartTime.value = Date.now()
+      currentStopIndex.value++
+      arrivalInRangeSince.value = null
+    } else {
+      const elapsed = Math.round((Date.now() - segmentStartTime.value) / 1000)
+      const fromName = stops.value[currentStopIndex.value - 1]?.name || boardStopName.value
+      segments.value.push({ from: fromName, to: stop.name, seconds: elapsed })
+      segmentStartTime.value = Date.now()
+      currentStopIndex.value++
+      arrivalInRangeSince.value = null
+    }
 
     if (allSegmentsRecorded.value) {
       finishSession('complete')
