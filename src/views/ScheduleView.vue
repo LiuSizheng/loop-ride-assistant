@@ -51,8 +51,8 @@ function todayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 const planDate = ref(todayStr())
-const planOrigin = ref('')
-const planDest = ref('')
+const planOrigin = ref('研究生宿舍楼')
+const planDest = ref('高超楼')
 const planDeadline = ref('20:00')
 const planResults = ref<any[]>([])
 const planShowAll = ref(false)
