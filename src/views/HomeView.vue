@@ -409,10 +409,10 @@ const nearbyStopArrivals = computed(() => {
       </div>
     </div>
 
-    <div v-if="!selectedStop" class="gps-card">
+    <div v-if="!selectedStop && (!mapStore.userLat || nearbyStopArrivals.length === 0)" class="gps-card">
       <van-icon name="location-o" size="20" />
       <span v-if="!mapStore.userLat">开启定位后自动推荐最近上车站点</span>
-      <span v-else-if="nearbyStopArrivals.length === 0">已定位到「{{ nearestStop?.name }}」附近，请选择目的地查看推荐车次</span>
+      <span v-else>已定位到「{{ nearestStop?.name }}」附近，请选择目的地查看推荐车次</span>
     </div>
 
     <div v-if="departingSoon.length > 0" class="section">
