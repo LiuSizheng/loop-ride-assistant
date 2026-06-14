@@ -33,7 +33,8 @@ onMounted(() => {
     </router-view>
   </div>
   <TabBar v-if="showTabBar" />
-  <TimeOverride />
+  <!-- 时间覆写悬浮窗（调试用）：改为 true 即可重新显示 -->
+  <TimeOverride v-if="false" />
 </template>
 
 <style>
