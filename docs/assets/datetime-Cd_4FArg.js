@@ -1,0 +1,1 @@
+import{aa as g,g as n}from"./index-fY4kiUVN.js";function d(t){return g(t??n())?"weekday":"weekend_holiday"}function u(t){const e=t??n();return e.getHours()*3600+e.getMinutes()*60+e.getSeconds()}function y(t){const e=n(),a=e.getFullYear(),o=e.getMonth()+1,s=e.getDate(),c=["日","一","二","三","四","五","六"][e.getDay()];return`${a}年${o}月${s}日 星期${c}`}export{u as a,y as f,d as g};
