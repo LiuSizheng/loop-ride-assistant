@@ -30,7 +30,7 @@ const stopSearch = ref('')
 const selectedStop = ref<string | null>(null)
 const stopExpanded = ref(false)
 const showAllArrivals = ref(false)
-const expandedBusId = ref<string | null>(null)
+const expandedCards = ref<Set<string>>(new Set())
 const nowTick = ref(0)  // 用于强制刷新
 const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
 
@@ -73,7 +73,7 @@ const nearestStop = computed(() => {
   return result?.station ?? null
 })
 watch(nearestStop, (stop) => {
-  // 有 GPS 时不自动选中最近站（让用户手动选目的地）
+  // 仅在无 GPS 时自动选中最近站
   if (stop && !selectedStop.value && mapStore.userLat === null) {
     selectedStop.value = stop.name
   }
@@ -81,7 +81,7 @@ watch(nearestStop, (stop) => {
 
 function selectStop(name: string) {
   if (selectedStop.value === name) {
-    selectedStop.value = nearestStop.value?.name ?? null
+    selectedStop.value = null // 取消选择，回到默认视图
     return
   }
   recordClick(name)
@@ -90,9 +90,12 @@ function selectStop(name: string) {
   showAllArrivals.value = false
 }
 
-// 展开/收起车次卡片
+// 展开/收起车次卡片（Set 防冲突）
 function toggleBusCard(key: string) {
-  expandedBusId.value = expandedBusId.value === key ? null : key
+  const next = new Set(expandedCards.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  expandedCards.value = next
 }
 function busCardKey(item: any): string {
   return 'arrival-' + item.departure?.recordId + '-' + (item.candidateStop || '')
@@ -222,6 +225,50 @@ const stopArrivals = computed(() => {
 const displayedArrivals = computed(() => {
   return showAllArrivals.value ? stopArrivals.value : stopArrivals.value.slice(0, 10)
 })
+
+// 默认视图：GPS 周边各站过站车次
+const nearbyStopArrivals = computed(() => {
+  if (selectedStop.value) return [] // 选了目的地就隐藏
+  if (mapStore.userLat === null) return []
+  const WALK_SPEED = 1.3
+  const candidates = findNearestStops(mapStore.userLat, mapStore.userLng, scheduleStore.stations, 3, 500)
+  const sections: any[] = []
+
+  for (const c of candidates) {
+    const stopName = c.station.name
+    const walkSeconds = c.distance / WALK_SPEED
+    const walkLabel = formatWalkTime(walkSeconds)
+    const arrivals: any[] = []
+    const preds = scheduleStore.getPredictionsForStop(stopName, dateType.value)
+
+    for (const p of preds) {
+      if (p.isDepartureStop || p.isReturnStop) continue
+      const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
+      if (!dep) continue
+      const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
+      if (secondsUntil < -60 || secondsUntil > 3600) continue
+      if (walkSeconds > secondsUntil) continue // 步行赶不上
+      const { label, status } = arrivalCountdown(secondsUntil)
+      arrivals.push({
+        departure: dep,
+        stopName,
+        walkSeconds,
+        walkLabel,
+        secondsUntil,
+        label,
+        status,
+        arrivalTime: p.arrivalTime,
+        departed: (dep.departureMinutes * 60) <= secondsNow.value,
+      })
+    }
+
+    if (arrivals.length > 0) {
+      arrivals.sort((a: any, b: any) => a.secondsUntil - b.secondsUntil)
+      sections.push({ stopName, walkLabel, arrivals })
+    }
+  }
+  return sections
+})
 </script>
 
 <template>
@@ -253,10 +300,36 @@ const displayedArrivals = computed(() => {
       </div>
     </div>
 
+    <!-- 默认视图：周边各站过站车次 -->
+    <template v-if="!selectedStop && nearbyStopArrivals.length > 0">
+      <div v-for="section in nearbyStopArrivals" :key="section.stopName" class="section">
+        <div class="section-title">「{{ section.stopName }}」 {{ section.walkLabel }}</div>
+        <div v-for="item in section.arrivals" :key="item.departure.recordId" class="bus-card nearby" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
+          <div class="bus-card-left">
+            <div class="route-col">
+              <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
+              <span class="bus-shift">{{ item.departure.shiftName }}</span>
+            </div>
+            <span v-if="item.departure.isGaochaoDeparture" class="tags-col">
+              <span class="bus-from">高超楼发车</span>
+              <span class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
+            </span>
+            <span v-else class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
+          </div>
+          <div class="bus-card-right">
+            <div class="walk-hint">{{ item.walkLabel }}到「{{ item.stopName }}」</div>
+            <div class="arrival-time">{{ item.arrivalTime }}</div>
+            <ETAIndicator :seconds-until="item.secondsUntil" type="arrival" />
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- 目的地车次推荐 -->
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in displayedArrivals" :key="busCardKey((item as any))" class="bus-card" :class="{ expanded: expandedBusId === busCardKey((item as any)) }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
+      <div v-for="item in displayedArrivals" :key="busCardKey((item as any))" class="bus-card" :class="{ expanded: expandedCards.has(busCardKey((item as any))) }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
         <div class="bus-card-main" @click="toggleBusCard(busCardKey((item as any)))">
         <div class="bus-card-left">
           <div class="route-col">
@@ -284,7 +357,7 @@ const displayedArrivals = computed(() => {
         </div>
         </div>
         <BusStopTimeline
-          v-if="expandedBusId === busCardKey((item as any))"
+          v-if="expandedCards.has(busCardKey((item as any)))"
           :departure-id="(item as any).departure?.recordId"
           :route-key="(item as any).departure?.routeKey"
           :highlight-stop="(item as any).destStop || selectedStop"
@@ -300,7 +373,8 @@ const displayedArrivals = computed(() => {
     <div v-if="!selectedStop" class="gps-card">
       <van-icon name="location-o" size="20" />
       <span v-if="!mapStore.userLat">开启定位后自动推荐最近上车站点</span>
-      <span v-else>已定位到「{{ nearestStop?.name }}」附近，请选择目的地查看推荐车次</span>
+      <span v-else-if="nearbyStopArrivals.length === 0">已定位到「{{ nearestStop?.name }}」附近，请选择目的地查看推荐车次</span>
+      <span v-else>已定位，以下为周边各站即将到站车次</span>
     </div>
 
     <div v-if="departingSoon.length > 0" class="section">
@@ -345,7 +419,8 @@ const displayedArrivals = computed(() => {
 .no-result { font-size: 13px; color: var(--color-text-secondary); padding: 4px; }
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
-.show-more-btn { text-align: center; padding: 12px; color: var(--color-primary); font-size: 13px; cursor: pointer; user-select: none; }
+.bus-card.nearby { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
+.walk-hint { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; }
 .bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; border-left: 3px solid transparent; }
 .bus-card.departing { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
 .bus-card.expanded { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
