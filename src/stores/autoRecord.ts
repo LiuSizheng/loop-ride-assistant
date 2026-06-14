@@ -177,7 +177,10 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
   function resumeSession() {
     if (sessionState.value !== 'paused') return
     if (pauseStartTime.value) {
-      totalPausedMs.value += Date.now() - pauseStartTime.value
+      const pauseMs = Date.now() - pauseStartTime.value
+      totalPausedMs.value += pauseMs
+      // 修正 segmentStartTime，排除暂停时段
+      if (segmentStartTime.value) segmentStartTime.value += pauseMs
       pauseStartTime.value = null
     }
     sessionState.value = 'active'
