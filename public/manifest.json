@@ -4,6 +4,9 @@
   "description": "校园环线公交车时刻表与到站预测",
   "start_url": "/loop-ride-assistant/",
   "display": "standalone",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "background_color": "#F3F4F6",
   "theme_color": "#1A56DB",
   "icons": [
