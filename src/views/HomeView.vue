@@ -100,6 +100,9 @@ function toggleBusCard(key: string) {
 function busCardKey(item: any): string {
   return 'arrival-' + item.departure?.recordId + '-' + (item.candidateStop || '')
 }
+function nearbyCardKey(item: any): string {
+  return 'nearby-' + item.stopName + '-' + item.departure.recordId
+}
 
 // 跳转地图聚焦
 function handleViewOnMap(departureId: string, routeKey: string) {
@@ -231,7 +234,7 @@ const nearbyStopArrivals = computed(() => {
   if (selectedStop.value) return [] // 选了目的地就隐藏
   if (mapStore.userLat === null) return []
   const WALK_SPEED = 1.3
-  const candidates = findNearestStops(mapStore.userLat, mapStore.userLng, scheduleStore.stations, 3, 500)
+  const candidates = findNearestStops(mapStore.userLat, mapStore.userLng, scheduleStore.stations, 3, 200)
   const sections: any[] = []
 
   for (const c of candidates) {
@@ -304,7 +307,8 @@ const nearbyStopArrivals = computed(() => {
     <template v-if="!selectedStop && nearbyStopArrivals.length > 0">
       <div v-for="section in nearbyStopArrivals" :key="section.stopName" class="section">
         <div class="section-title">「{{ section.stopName }}」 {{ section.walkLabel }}</div>
-        <div v-for="item in section.arrivals" :key="item.departure.recordId" class="bus-card nearby" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
+        <div v-for="item in section.arrivals" :key="item.departure.recordId" class="bus-card nearby" :class="{ expanded: expandedCards.has(nearbyCardKey(item)) }" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
+          <div class="bus-card-main" @click="toggleBusCard(nearbyCardKey(item))">
           <div class="bus-card-left">
             <div class="route-col">
               <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
@@ -321,6 +325,14 @@ const nearbyStopArrivals = computed(() => {
             <div class="arrival-time">{{ item.arrivalTime }}</div>
             <ETAIndicator :seconds-until="item.secondsUntil" type="arrival" />
           </div>
+          </div>
+          <BusStopTimeline
+            v-if="expandedCards.has(nearbyCardKey(item))"
+            :departure-id="item.departure.recordId"
+            :route-key="item.departure.routeKey"
+            :highlight-origin="item.stopName"
+            @view-on-map="handleViewOnMap"
+          />
         </div>
       </div>
     </template>
@@ -419,7 +431,6 @@ const nearbyStopArrivals = computed(() => {
 .no-result { font-size: 13px; color: var(--color-text-secondary); padding: 4px; }
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
-.bus-card.nearby { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
 .walk-hint { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; }
 .bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; border-left: 3px solid transparent; }
 .bus-card.departing { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
