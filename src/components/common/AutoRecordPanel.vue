@@ -137,33 +137,20 @@ onMounted(() => {
       <!-- 上车站点检测/选择 -->
       <div class="field-row" v-if="hasGps && pickerStops.length > 0">
         <span class="label">上车</span>
-        <div class="board-picker-wrap">
-          <span class="board-select" @click="showStopPicker = !showStopPicker">
-            {{ manualBoard || detectedStop || '选择站点' }}
-            <van-icon name="arrow-down" size="12" />
-          </span>
-          <div class="stop-dropdown" v-show="showStopPicker">
-            <div
-              v-for="s in pickerStops"
-              :key="s"
-              class="stop-drop-item"
-              :class="{ active: s === manualBoard || (!manualBoard && s === detectedStop) }"
-              @click="manualBoard = s; showStopPicker = false"
-            >{{ s }}</div>
-          </div>
-        </div>
+        <span class="board-select" @click="showStopPicker = !showStopPicker">
+          {{ manualBoard || detectedStop || '选择站点' }}
+          <van-icon :name="showStopPicker ? 'arrow-up' : 'arrow-down'" size="12" />
+        </span>
         <span v-if="detectedStop && manualBoard === detectedStop" class="auto-detect">自动</span>
       </div>
 
-      <!-- 遮罩 -->
-      <div v-if="showStopPicker" class="picker-mask" @click="showStopPicker = false" />
-      <div class="stop-dropdown" v-show="showStopPicker">
-        <div class="stop-drop-title">选择上车站点</div>
+      <!-- 内嵌站点列表 -->
+      <div v-if="showStopPicker" class="stop-list-inline">
         <div
           v-for="s in pickerStops"
           :key="s"
-          class="stop-drop-item"
-          :class="{ active: s === manualBoard || (!manualBoard && s === detectedStop) }"
+          class="stop-list-item"
+          :class="{ active: s === (manualBoard || detectedStop) }"
           @click="manualBoard = s; showStopPicker = false"
         >{{ s }}</div>
       </div>
@@ -282,13 +269,10 @@ onMounted(() => {
 .nearest-hint { color: #8B5CF6; }
 .auto-detect { font-size: 11px; color: #10B981; white-space: nowrap; }
 .board-select { padding: 4px 10px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
-.board-picker-wrap { position: relative; }
-.stop-dropdown { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: #fff; border-radius: 12px 12px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,0.12); max-height: 50vh; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
-.stop-drop-title { padding: 14px 16px 8px; font-size: 13px; color: var(--color-text-secondary); border-bottom: 1px solid #F3F4F6; }
-.stop-drop-item { padding: 12px 16px; font-size: 14px; cursor: pointer; }
-.stop-drop-item:active { background: #F3F4F6; }
-.stop-drop-item.active { color: var(--color-primary); font-weight: 600; background: #EFF6FF; }
-.picker-mask { position: fixed; inset: 0; z-index: 150; }
+.stop-list-inline { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0; }
+.stop-list-item { padding: 4px 10px; background: #F3F4F6; border-radius: 14px; font-size: 12px; cursor: pointer; border: 1px solid transparent; }
+.stop-list-item:active { background: #E5E7EB; }
+.stop-list-item.active { background: #EFF6FF; border-color: var(--color-primary); color: var(--color-primary); font-weight: 600; }
 
 /* stop timeline */
 .stop-timeline { position: relative; }
