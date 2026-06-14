@@ -144,7 +144,14 @@ onMounted(() => {
         <span v-if="detectedStop && manualBoard === detectedStop" class="auto-detect">自动</span>
       </div>
 
-      <van-action-sheet v-model:show="showStopPicker" teleport="body" :actions="pickerStops.map(s => ({ name: s }))" @select="(a: any) => { manualBoard = a.name; showStopPicker = false }" />
+      <van-popup v-model:show="showStopPicker" round position="bottom" teleport="body">
+        <van-picker
+          :columns="pickerStops"
+          :default-index="pickerStops.indexOf(manualBoard || detectedStop || '')"
+          @confirm="(v: any) => { manualBoard = v.selectedValues?.[0] ?? v; showStopPicker = false }"
+          @cancel="showStopPicker = false"
+        />
+      </van-popup>
 
       <van-button
         type="primary"
