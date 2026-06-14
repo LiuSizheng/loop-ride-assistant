@@ -137,21 +137,26 @@ onMounted(() => {
       <!-- 上车站点检测/选择 -->
       <div class="field-row" v-if="hasGps && pickerStops.length > 0">
         <span class="label">上车</span>
-        <span class="board-select" @click="showStopPicker = true">
-          {{ manualBoard || detectedStop || '选择站点' }}
-          <van-icon name="arrow-down" size="12" />
-        </span>
+        <div class="board-picker-wrap">
+          <span class="board-select" @click="showStopPicker = !showStopPicker">
+            {{ manualBoard || detectedStop || '选择站点' }}
+            <van-icon name="arrow-down" size="12" />
+          </span>
+          <div class="stop-dropdown" v-show="showStopPicker">
+            <div
+              v-for="s in pickerStops"
+              :key="s"
+              class="stop-drop-item"
+              :class="{ active: s === manualBoard || (!manualBoard && s === detectedStop) }"
+              @click="manualBoard = s; showStopPicker = false"
+            >{{ s }}</div>
+          </div>
+        </div>
         <span v-if="detectedStop && manualBoard === detectedStop" class="auto-detect">自动</span>
       </div>
 
-      <van-popup v-model:show="showStopPicker" round position="bottom" teleport="body">
-        <van-picker
-          :columns="pickerStops"
-          :default-index="pickerStops.indexOf(manualBoard || detectedStop || '')"
-          @confirm="(v: any) => { manualBoard = v.selectedValues?.[0] ?? v; showStopPicker = false }"
-          @cancel="showStopPicker = false"
-        />
-      </van-popup>
+      <!-- 遮罩 -->
+      <div v-if="showStopPicker" class="picker-mask" @click="showStopPicker = false" />
 
       <van-button
         type="primary"
@@ -267,6 +272,12 @@ onMounted(() => {
 .nearest-hint { color: #8B5CF6; }
 .auto-detect { font-size: 11px; color: #10B981; white-space: nowrap; }
 .board-select { padding: 4px 10px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
+.board-picker-wrap { position: relative; }
+.stop-dropdown { position: absolute; top: 100%; left: 0; z-index: 200; background: #fff; border: 1px solid var(--color-border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); max-height: 260px; overflow-y: auto; min-width: 140px; margin-top: 4px; }
+.stop-drop-item { padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.stop-drop-item:active { background: #F3F4F6; }
+.stop-drop-item.active { color: var(--color-primary); font-weight: 600; background: #EFF6FF; }
+.picker-mask { position: fixed; inset: 0; z-index: 150; }
 
 /* stop timeline */
 .stop-timeline { position: relative; }
