@@ -136,7 +136,7 @@ const stopArrivals = computed(() => {
     if (isNearby) {
       // 和默认视图一样：只展示这个站的到站车次
       for (const p of preds) {
-        if (p.isDepartureStop || p.isReturnStop) continue
+        if (p.isReturnStop) continue
         const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
         if (!dep) continue
         const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
