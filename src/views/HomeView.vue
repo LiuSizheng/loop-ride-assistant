@@ -339,6 +339,10 @@ const nearbyStopArrivals = computed(() => {
       </div>
     </div>
 
+    <div class="survey-line">
+      <a href="https://v.wjx.cn/vm/thRw5hx.aspx" target="_blank" rel="noopener">📝 使用反馈</a>
+    </div>
+
     <!-- 默认视图：周边各站过站车次 -->
     <template v-if="!selectedStop && nearbyStopArrivals.length > 0">
       <div v-for="section in nearbyStopArrivals" :key="section.stopName" class="section">
@@ -445,10 +449,6 @@ const nearbyStopArrivals = computed(() => {
       <van-loading size="32" />
       <p>加载时刻表数据...</p>
     </div>
-
-    <div class="survey-footer">
-      <a href="https://v.wjx.cn/vm/thRw5hx.aspx" target="_blank" rel="noopener">📝 使用反馈</a>
-    </div>
   </div>
 </template>
 
@@ -491,7 +491,7 @@ const nearbyStopArrivals = computed(() => {
 .dest-info { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .board-time { font-size: 12px; color: var(--color-text-secondary); }
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 0; color: var(--color-text-secondary); gap: 12px; }
-.survey-footer { text-align: center; padding: 8px 0 4px; }
-.survey-footer a { color: #9CA3AF; font-size: 12px; text-decoration: none; }
-.survey-footer a:active { color: var(--color-primary); }
+.survey-line { text-align: center; padding: 0 0 12px; }
+.survey-line a { color: #9CA3AF; font-size: 12px; text-decoration: none; }
+.survey-line a:active { color: var(--color-primary); }
 </style>
