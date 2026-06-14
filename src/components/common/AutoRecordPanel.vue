@@ -157,6 +157,16 @@ onMounted(() => {
 
       <!-- 遮罩 -->
       <div v-if="showStopPicker" class="picker-mask" @click="showStopPicker = false" />
+      <div class="stop-dropdown" v-show="showStopPicker">
+        <div class="stop-drop-title">选择上车站点</div>
+        <div
+          v-for="s in pickerStops"
+          :key="s"
+          class="stop-drop-item"
+          :class="{ active: s === manualBoard || (!manualBoard && s === detectedStop) }"
+          @click="manualBoard = s; showStopPicker = false"
+        >{{ s }}</div>
+      </div>
 
       <van-button
         type="primary"
@@ -273,8 +283,9 @@ onMounted(() => {
 .auto-detect { font-size: 11px; color: #10B981; white-space: nowrap; }
 .board-select { padding: 4px 10px; background: var(--color-card); border: 1px solid var(--color-border); border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 4px; }
 .board-picker-wrap { position: relative; }
-.stop-dropdown { position: absolute; top: 100%; left: 0; z-index: 200; background: #fff; border: 1px solid var(--color-border); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); max-height: 260px; overflow-y: auto; min-width: 140px; margin-top: 4px; }
-.stop-drop-item { padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.stop-dropdown { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: #fff; border-radius: 12px 12px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,0.12); max-height: 50vh; overflow-y: auto; padding-bottom: env(safe-area-inset-bottom); }
+.stop-drop-title { padding: 14px 16px 8px; font-size: 13px; color: var(--color-text-secondary); border-bottom: 1px solid #F3F4F6; }
+.stop-drop-item { padding: 12px 16px; font-size: 14px; cursor: pointer; }
 .stop-drop-item:active { background: #F3F4F6; }
 .stop-drop-item.active { color: var(--color-primary); font-weight: 600; background: #EFF6FF; }
 .picker-mask { position: fixed; inset: 0; z-index: 150; }
