@@ -84,12 +84,15 @@ export function useAutoRecord() {
   // ---- visibilitychange ----
   function onVisibilityChange() {
     if (document.hidden) {
+      // 切后台只释放 wakeLock，不暂停会话
+      // GPS 在后台会被系统节流，但回来后继续检测即可
+      releaseWakeLock()
+    } else {
+      // 回到前台重新获取 wakeLock
       if (autoStore.sessionState === 'active') {
-        autoStore.pauseSession()
-        releaseWakeLock()
+        acquireWakeLock()
       }
     }
-    // 回到前台不自动恢复，用户需手动点"继续记录"
   }
 
   // ---- 开始 ----

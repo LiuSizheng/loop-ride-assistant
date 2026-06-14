@@ -120,6 +120,21 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
     lastLat.value = lat
     lastLng.value = lng
 
+    // ---- 错站检测：切后台期间可能跳过了一些站 ----
+    let bestStopIdx = currentStopIndex.value
+    let bestDist = Infinity
+    for (let i = currentStopIndex.value; i < stops.value.length; i++) {
+      const d = haversineDistance(lat, lng, stops.value[i].lat, stops.value[i].lng)
+      if (d < bestDist) { bestDist = d; bestStopIdx = i }
+    }
+    // 如果在后面某站的 30m 内，且跳过了至少一站 → 跳过中间站，重置计时
+    if (bestStopIdx > currentStopIndex.value && bestDist <= 30) {
+      currentStopIndex.value = bestStopIdx
+      segmentStartTime.value = Date.now()
+      arrivalInRangeSince.value = null
+      leaveOutOfRangeSince.value = null
+    }
+
     const stop = stops.value[currentStopIndex.value]
     if (!stop) return
 

@@ -36,7 +36,7 @@ async function handleStop() {
 }
 
 async function handleCancel() {
-  if (autoStore.sessionState === 'active' || autoStore.sessionState === 'paused') {
+  if (autoStore.sessionState === 'active') {
     try { await showConfirmDialog({ title: '取消记录', message: '确认取消？已记录的数据将不会保存。' }) } catch { return }
   }
   cancelRecording()
@@ -111,8 +111,8 @@ onMounted(() => {
       </div>
     </template>
 
-    <!-- ====== Active / Paused ====== -->
-    <template v-if="autoStore.sessionState === 'active' || autoStore.sessionState === 'paused'">
+    <!-- ====== Active ====== -->
+    <template v-if="autoStore.sessionState === 'active'">
       <!-- 顶部信息栏 -->
       <div class="recording-header">
         <div class="recording-route">
@@ -156,15 +156,6 @@ onMounted(() => {
       <div v-if="leavingSoon && autoStore.sessionState === 'active'" class="leave-warn">
         <van-icon name="warning-o" />
         <span>检测到已离开路线，{{ 10 - Math.ceil((Date.now() - (autoStore.leaveOutOfRangeSince || Date.now())) / 1000) }}秒后自动结束</span>
-      </div>
-
-      <!-- 暂停覆盖 -->
-      <div v-if="autoStore.sessionState === 'paused'" class="pause-overlay">
-        <van-icon name="pause-circle-o" size="40" color="#F59E0B" />
-        <p class="pause-title">记录已暂停</p>
-        <p class="pause-hint">应用切到后台或屏幕关闭会导致暂停</p>
-        <van-button type="primary" round block @click="resumeRecording">继续记录</van-button>
-        <van-button type="default" round block @click="handleStop" style="margin-top:8px">结束记录</van-button>
       </div>
 
       <!-- 底部按钮 -->
@@ -226,11 +217,6 @@ onMounted(() => {
 
 /* leave warning */
 .leave-warn { display: flex; align-items: center; gap: 6px; padding: 10px 14px; background: #FEF3C7; border-radius: 8px; font-size: 12px; color: #92400E; margin-top: 12px; }
-
-/* pause overlay */
-.pause-overlay { text-align: center; padding: 32px 16px; background: #FFFBEB; border-radius: 12px; margin-top: 16px; }
-.pause-title { font-size: 16px; font-weight: 600; margin: 8px 0 4px; }
-.pause-hint { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 16px; }
 
 /* bottom actions */
 .bottom-actions { margin-top: 20px; }
