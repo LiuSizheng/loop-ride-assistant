@@ -186,21 +186,12 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
   }
 
   function manualLeave() {
-    // 将当前未完成的段也记录（如果有经过时间）
-    if (segmentStartTime.value && currentStopIndex.value < stops.value.length) {
-      const elapsed = Math.round((Date.now() - segmentStartTime.value) / 1000)
-      if (elapsed > 0) {
-        const fromName = stops.value[currentStopIndex.value - 1]?.name || boardStopName.value
-        const toName = stops.value[currentStopIndex.value]?.name || '下车点'
-        segments.value.push({ from: fromName, to: toName, seconds: elapsed })
-      }
-    }
+    // 不记录额外段：最后一段已被 recordArrival 记录，离开路程不计入
     finishSession('manual_leave')
   }
 
   function autoLeave() {
-    // 和 manualLeave 一样逻辑
-    manualLeave()
+    finishSession('auto_leave')
   }
 
   async function finishSession(reason: string) {
