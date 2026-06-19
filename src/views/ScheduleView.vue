@@ -166,7 +166,7 @@ function togglePlanExpand(recordId: string) {
           <div class="plan-card-top" @click="togglePlanExpand(r.departure.recordId)">
             <RouteBadge :route="r.departure.route" :dining="r.departure.routeKey === 'HX1_DINING'" />
             <span class="plan-shift">{{ r.departure.shiftName }}</span>
-            <span class="plan-from" v-if="r.departure.isGaochaoDeparture">高超楼发车</span>
+            <span class="plan-from" v-if="r.departure.isGaochaoDeparture">系统楼发车</span>
             <van-icon name="arrow-down" class="plan-arrow" :class="{ rotated: planExpandedId === r.departure.recordId }" />
           </div>
           <div class="plan-card-body">
@@ -219,7 +219,7 @@ function togglePlanExpand(recordId: string) {
               <div class="dep-left">
                 <RouteBadge :route="dep.route" :dining="isDining(dep)" />
                 <span class="dep-time">{{ dep.departureTime }}</span>
-                <span class="dep-station" v-if="dep.isGaochaoDeparture">高超楼发车</span>
+                <span class="dep-station" v-if="dep.isGaochaoDeparture">系统楼发车</span>
               </div>
               <div class="dep-right">
                 <span v-if="dep.confidence === 'speculative'" class="tag-spec">待确认</span>

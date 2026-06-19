@@ -355,7 +355,7 @@ const nearbyStopArrivals = computed(() => {
               <span class="bus-shift">{{ item.departure.shiftName }}</span>
             </div>
             <span v-if="item.departure.isGaochaoDeparture" class="tags-col">
-              <span class="bus-from">高超楼发车</span>
+              <span class="bus-from">系统楼发车</span>
               <span class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
             </span>
             <span v-else class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
