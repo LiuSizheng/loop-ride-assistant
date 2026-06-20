@@ -27,6 +27,7 @@ const todayDate = computed(() => formatDate())
 const dateTypeLabel = computed(() => getDateLabel())
 const isWeekday = computed(() => dateType.value === 'weekday')
 const stopSearch = ref('')
+const showNotice = ref(false)
 const selectedStop = ref<string | null>(null)
 const stopExpanded = ref(false)
 const showAllArrivals = ref(false)
@@ -327,6 +328,12 @@ const nearbyStopArrivals = computed(() => {
     </div>
 
     <div class="section">
+      <van-notice-bar left-icon="info-o" text="本软件的时间表和预测到站时间仅供参考，欢迎使用记录功能帮忙标记车辆运行时间" clickable @click="showNotice = true" />
+      <van-dialog v-model:show="showNotice" title="公告" confirm-button-text="我知道了">
+        <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #374151;">
+          本软件的时间表和预测到站时间仅供参考，欢迎使用记录功能帮忙标记车辆运行时间，以使得预测更加准确。
+        </div>
+      </van-dialog>
       <van-search v-model="stopSearch" placeholder="搜索站点名称" shape="round" background="transparent" />
       <div class="stop-grid" v-if="!stopSearch">
         <template v-for="stop in (stopExpanded ? sortedStops : collapsedStops)" :key="stop">
@@ -494,7 +501,7 @@ const nearbyStopArrivals = computed(() => {
 .dest-info { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 .board-time { font-size: 12px; color: var(--color-text-secondary); }
 .loading { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 0; color: var(--color-text-secondary); gap: 12px; }
-.survey-line { text-align: center; padding: 0 0 12px; }
+.survey-line { text-align: center; padding: 0; }
 .survey-line a { color: #9CA3AF; font-size: 12px; text-decoration: none; }
 .survey-line a:active { color: var(--color-primary); }
 </style>
