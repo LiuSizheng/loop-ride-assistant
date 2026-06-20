@@ -244,7 +244,7 @@ watch(() => mapStore.visibleRoutes, () => { if (!initializing) {} })
 
       <div class="map-layer" :style="layerStyle">
         <!-- 卫星底图 -->
-        <img :src="`${BASE_URL}data/campus-satellite.png`" :width="IMG_W" :height="IMG_H"
+        <img :src="`${BASE_URL}data/campus-satellite.jpg`" :width="IMG_W" :height="IMG_H"
           style="display:block;user-select:none;pointer-events:none" draggable="false">
 
         <!-- SVG 叠加层 -->

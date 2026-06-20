@@ -18,8 +18,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,json,png,svg,ico}'],
-        maximumFileSizeToCacheInBytes: 12 * 1024 * 1024, // 12MB for satellite image
+        globPatterns: ['**/*.{js,css,html,json,png,jpg,jpeg,svg,ico}'],
+        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024, // 2MB max (satellite JPEG ~800KB)
       },
       manifest: false,
     }),
