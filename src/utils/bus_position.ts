@@ -24,17 +24,33 @@ function findClosestPathIndex(path: RoutePath, lng: number, lat: number, startFr
 }
 
 /**
- * 计算路径上两点之间的累计距离（度），支持 fromIdx > toIdx 的环线回绕
+ * 计算路径上两点之间的累计距离（度）
+ * 支持环线回绕：fromIdx >= toIdx 时从 fromIdx 走到路径末尾再绕回 toIdx
  */
 function computePathDistances(path: RoutePath, fromIdx: number, toIdx: number): number[] {
   const dists: number[] = [0]
   if (fromIdx < toIdx) {
+    // 正常顺序
     for (let i = fromIdx + 1; i <= toIdx; i++) {
       const dlng = path[i][0] - path[i - 1][0]
       const dlat = path[i][1] - path[i - 1][1]
       dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
     }
+  } else if (fromIdx > toIdx) {
+    // 环线回绕：先走到路径末尾，再从开头走到 toIdx
+    for (let i = fromIdx + 1; i < path.length; i++) {
+      const dlng = path[i][0] - path[i - 1][0]
+      const dlat = path[i][1] - path[i - 1][1]
+      dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
+    }
+    // 从路径末尾绕回开头
+    for (let i = 1; i <= toIdx; i++) {
+      const dlng = path[i][0] - path[i - 1][0]
+      const dlat = path[i][1] - path[i - 1][1]
+      dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
+    }
   }
+  // fromIdx === toIdx: 返回 [0]，起点即终点
   return dists
 }
 
@@ -152,8 +168,6 @@ export function computeActiveBusPositions(
         let heading: number
         const totalDist = distances[distances.length - 1]
         if (totalDist > 0) {
-          // 在路径上取当前位置前后各一小段来确定朝向
-          const lookAheadDist = totalDist * 0.001
           const aheadFrac = Math.min(1, timeFraction + 0.02)
           const behindFrac = Math.max(0, timeFraction - 0.02)
           const ahead = interpolateOnPath(path, fromIdx, toIdx, distances, aheadFrac)

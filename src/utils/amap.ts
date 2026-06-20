@@ -13,8 +13,6 @@ declare global {
   interface Window {
     _amapLoaded?: boolean
     _amapLoading?: boolean
-    _amapResolve?: () => void
-    _amapReject?: (err: Error) => void
     _AMapSecurityConfig?: {
       securityJsCode: string
     }
@@ -43,6 +41,9 @@ export function loadAMap(): Promise<void> {
 
   window._amapLoading = true
 
+  // 高德地图 JS API 2.0 要求在加载 SDK 之前设置安全密钥
+  window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY_KEY }
+
   return new Promise((resolve, reject) => {
     const script = document.createElement('script')
     script.src = `https://webapi.amap.com/maps?v=${AMAP_VERSION}&key=${AMAP_KEY}`
@@ -60,11 +61,10 @@ export function loadAMap(): Promise<void> {
 }
 
 /**
- * 设置高德地图 Key（可在运行时覆盖）
+ * 设置高德地图 Key（暂不支持运行时覆盖，需在源码中修改）
  */
-export function setAMapKey(key: string): void {
-  // 仅在尚未加载时有效
-  // 实际使用请在源码中修改 AMAP_KEY
+export function setAMapKey(_key: string): void {
+  // Key 在模块顶部常量中定义，加载后不可更改
 }
 
 export { AMAP_KEY }

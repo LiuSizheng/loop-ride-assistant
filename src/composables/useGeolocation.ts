@@ -17,6 +17,9 @@ export function useGeolocation() {
 
     watchId = navigator.geolocation.watchPosition(
       (position) => {
+        // 过滤低精度定位：accuracy > 50m 时跳过（避免到站检测误判）
+        if (position.coords.accuracy > 50) return
+
         // 浏览器 GPS 返回 WGS-84，转为 GCJ-02 适配高德地图
         const [gcjLng, gcjLat] = wgs84ToGcj02(
           position.coords.longitude,

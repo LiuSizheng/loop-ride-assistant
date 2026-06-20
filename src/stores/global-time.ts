@@ -30,11 +30,11 @@ export const useGlobalTime = defineStore('global-time', () => {
     }
   }
 
-  /** 快捷设置：今天 + 指定时分 */
+  /** 快捷设置：当前模拟日期（或真实日期）+ 指定时分 */
   function setPreset(hour: number, minute: number): void {
-    const d = new Date()
-    d.setHours(hour, minute, 0, 0)
-    simBase.value = { real: Date.now(), target: d.getTime() }
+    const base = simBase.value ? new Date(simBase.value.target) : new Date()
+    base.setHours(hour, minute, 0, 0)
+    simBase.value = { real: Date.now(), target: base.getTime() }
   }
 
   /** 设置完整日期（年月日 + 时分） */
