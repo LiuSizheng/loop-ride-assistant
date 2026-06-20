@@ -60,6 +60,7 @@ const panY = ref(0)
 const scale = ref(1)
 const MIN_SCALE = 0.5
 const MAX_SCALE = 4
+const BOUND_BUFFER = 200 // 拖拽边界留白
 
 const layerStyle = computed(() => ({
   width: IMG_W + 'px', height: IMG_H + 'px',
@@ -67,9 +68,20 @@ const layerStyle = computed(() => ({
   transformOrigin: '0 0',
 }))
 
+// 判断地图是否偏离太远
+const isMapLost = computed(() => {
+  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+  const imgRight = panX.value + IMG_W * scale.value
+  const imgBottom = panY.value + IMG_H * scale.value
+  // 图片完全不在视口内
+  return imgRight < -BOUND_BUFFER || panX.value > vw + BOUND_BUFFER
+      || imgBottom < -BOUND_BUFFER || panY.value > vh + BOUND_BUFFER
+})
+
+// ---- 单指拖拽 ----
 let isDragging = false
 let lastX = 0, lastY = 0
-let pinchDist = 0, pinchScale = 1
 
 function onPointerDown(e: PointerEvent) {
   if (e.pointerType === 'touch' && (e as any).isPrimary === false) return
@@ -83,21 +95,45 @@ function onPointerMove(e: PointerEvent) {
   lastX = e.clientX; lastY = e.clientY
 }
 function onPointerUp() { isDragging = false }
+
+// ---- 滚轮缩放（以光标为中心） ----
 function onWheel(e: WheelEvent) {
   e.preventDefault()
   const factor = e.deltaY > 0 ? 0.9 : 1.1
-  scale.value = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor))
+  const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor))
+  const ratio = newScale / scale.value
+  // 保持光标位置不变：pan += (1 - ratio) * (cursor - pan)
+  panX.value = e.clientX - (e.clientX - panX.value) * ratio
+  panY.value = e.clientY - (e.clientY - panY.value) * ratio
+  scale.value = newScale
 }
+
+// ---- 双击缩放（以点击位置为中心） ----
 function onDblClick(e: MouseEvent) {
   e.preventDefault()
-  scale.value = Math.min(MAX_SCALE, scale.value * 1.5)
+  const newScale = Math.min(MAX_SCALE, scale.value * 1.5)
+  const ratio = newScale / scale.value
+  panX.value = e.clientX - (e.clientX - panX.value) * ratio
+  panY.value = e.clientY - (e.clientY - panY.value) * ratio
+  scale.value = newScale
 }
-// 触摸双指缩放
+
+// ---- 双指缩放（以双指中心为基准） ----
+let pinchDist = 0, pinchScale = 1
+let pinchCenterX = 0, pinchCenterY = 0, pinchPanX = 0, pinchPanY = 0
+
 function onTouchStart(e: TouchEvent) {
   if (e.touches.length === 2) {
+    e.preventDefault()
     const dx = e.touches[0].clientX - e.touches[1].clientX
     const dy = e.touches[0].clientY - e.touches[1].clientY
-    pinchDist = Math.hypot(dx, dy); pinchScale = scale.value
+    pinchDist = Math.hypot(dx, dy)
+    pinchScale = scale.value
+    pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2
+    pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2
+    pinchPanX = panX.value
+    pinchPanY = panY.value
+    isDragging = false
   }
 }
 function onTouchMove(e: TouchEvent) {
@@ -106,9 +142,19 @@ function onTouchMove(e: TouchEvent) {
     const dx = e.touches[0].clientX - e.touches[1].clientX
     const dy = e.touches[0].clientY - e.touches[1].clientY
     const dist = Math.hypot(dx, dy)
-    scale.value = Math.max(MIN_SCALE, Math.min(MAX_SCALE, pinchScale * (dist / pinchDist)))
+    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, pinchScale * (dist / pinchDist)))
+    // 双指中心新位置
+    const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2
+    const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2
+    // 保持双指中心点固定在屏幕上
+    const ratio = newScale / pinchScale
+    panX.value = cx - (pinchCenterX - pinchPanX) * ratio
+    panY.value = cy - (pinchCenterY - pinchPanY) * ratio
+    scale.value = newScale
   }
 }
+
+// ---- 定位按钮 ----
 function recenterOnUser() {
   if (mapStore.userLat === null || mapStore.userLng === null) return
   const p = gcj02ToPixel(mapStore.userLng, mapStore.userLat)
@@ -118,6 +164,15 @@ function recenterOnUser() {
   panX.value = vw / 2 - p.x * scale.value
   panY.value = vh / 2 - p.y * scale.value
   mapStore.recenterOnUser()
+}
+
+// 一键回中（当地图拖丢时）
+function recenterMap() {
+  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+  scale.value = 1
+  panX.value = (vw - IMG_W) / 2
+  panY.value = (vh - IMG_H) / 2
 }
 
 // ---- 路线折线像素坐标 ----
@@ -290,6 +345,9 @@ watch(() => mapStore.visibleRoutes, () => { if (!initializing) {} })
 
     <MapLegend />
     <div class="map-controls">
+      <div v-if="isMapLost" class="locate-btn recenter-btn" @click="recenterMap">
+        <van-icon name="replay" size="20" />
+      </div>
       <div class="locate-btn" @click="recenterOnUser">
         <van-icon name="aim" size="20" />
       </div>
@@ -327,6 +385,8 @@ watch(() => mapStore.visibleRoutes, () => { if (!initializing) {} })
   width: 44px; height: 44px; background: var(--color-card); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 2px 10px rgba(0,0,0,0.15); cursor: pointer; color: var(--color-primary);
+  margin-bottom: 10px;
 }
 .locate-btn:active { background: #F3F4F6; }
+.recenter-btn { color: #F59E0B; }
 </style>
