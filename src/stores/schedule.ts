@@ -38,12 +38,13 @@ export const useScheduleStore = defineStore('schedule', () => {
 
     try {
       const base = import.meta.env.BASE_URL
+      const v = Date.now() // 防止缓存
 
       const [depsRes, rpRes, stRes, predRes] = await Promise.all([
-        fetch(`${base}data/departures.json`),
-        fetch(`${base}data/route_params.json`),
-        fetch(`${base}data/stations.json`),
-        fetch(`${base}data/arrival_predictions.json`),
+        fetch(`${base}data/departures.json?v=${v}`),
+        fetch(`${base}data/route_params.json?v=${v}`),
+        fetch(`${base}data/stations.json?v=${v}`),
+        fetch(`${base}data/arrival_predictions.json?v=${v}`),
       ])
 
       if (!depsRes.ok || !rpRes.ok || !stRes.ok || !predRes.ok) {
@@ -57,7 +58,7 @@ export const useScheduleStore = defineStore('schedule', () => {
 
       // Load route paths (optional)
       try {
-        const rpRes2 = await fetch(`${base}data/route_paths.json`)
+        const rpRes2 = await fetch(`${base}data/route_paths.json?v=${v}`)
         if (rpRes2.ok) {
           routePaths.value = await rpRes2.json()
         }
@@ -67,7 +68,7 @@ export const useScheduleStore = defineStore('schedule', () => {
 
       // Load route stops (per-route station positions)
       try {
-        const rsRes = await fetch(`${base}data/route_stops.json`)
+        const rsRes = await fetch(`${base}data/route_stops.json?v=${v}`)
         if (rsRes.ok) {
           routeStops.value = await rsRes.json()
         }

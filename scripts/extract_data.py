@@ -639,6 +639,22 @@ def main():
     for rk, pts in route_paths.items():
         print(f"  {rk}: {len(pts)} points")
 
+    # 验证所有坐标已转换为 GCJ-02
+    print("  验证坐标系...")
+    conversion_needed = False
+    for route_key, path in route_paths.items():
+        for i, (lng, lat) in enumerate(path[:3]):  # 只检查前3个点
+            if lng < 113.05:
+                print(f"  ⚠️  {route_key} 点 {i} 仍然是 WGS-84: [{lng:.6f}, {lat:.6f}]")
+                # 重新转换
+                gcj_lng, gcj_lat = wgs84_to_gcj02(lng, lat)
+                path[i] = (gcj_lng, gcj_lat)
+                print(f"      已转换为 GCJ-02: [{gcj_lng:.6f}, {gcj_lat:.6f}]")
+                conversion_needed = True
+
+    if not conversion_needed:
+        print("  ✓ 所有坐标已经是 GCJ-02")
+
     print("Generating route stops...")
     route_stops = parse_route_stops(WAYPOINT_FILE)
     for rk, stops in route_stops.items():

@@ -107,30 +107,20 @@ function renderStops() {
   for (const pattern of scheduleStore.routePatterns) {
     if (!mapStore.visibleRoutes.has(pattern.routeKey)) continue
 
-    let path: [number, number][]
-    if (scheduleStore.routePaths[pattern.routeKey]) {
-      path = scheduleStore.routePaths[pattern.routeKey]
-    } else {
-      path = []
-      for (const stop of pattern.stops) {
-        const station = scheduleStore.stations.find((s) => s.name === stop.currentStop)
-        if (station) path.push([station.lng, station.lat])
-      }
-    }
+    const path = scheduleStore.routePaths[pattern.routeKey]
+    if (!path || path.length < 2) continue  // 没有路径数据则跳过折线绘制
 
-    if (path.length > 1) {
-      const color = getRouteColor(pattern.routeKey)
-      const polyline = new (window as any).AMap.Polyline({
-        path,
-        strokeColor: color,
-        strokeWeight: 3,
-        strokeOpacity: 0.6,
-        strokeStyle: pattern.routeKey === 'HX1_DINING' ? 'dashed' : 'solid',
-        zIndex: 10,
-      })
-      polyline.setMap(mapInstance)
-      routePolylines.push(polyline)
-    }
+    const color = getRouteColor(pattern.routeKey)
+    const polyline = new (window as any).AMap.Polyline({
+      path,
+      strokeColor: color,
+      strokeWeight: 3,
+      strokeOpacity: 0.6,
+      strokeStyle: pattern.routeKey === 'HX1_DINING' ? 'dashed' : 'solid',
+      zIndex: 10,
+    })
+    polyline.setMap(mapInstance)
+    routePolylines.push(polyline)
   }
 
   // 站点标记
@@ -146,7 +136,8 @@ function renderStops() {
     const color = getRouteColor(rk)
 
     for (const stop of stops) {
-      const dedupKey = `${rk}|${stop.name}`
+      // 使用坐标作为去重依据，允许同名但不同坐标的站点都显示
+      const dedupKey = `${rk}|${stop.name}|${stop.lat.toFixed(6)}|${stop.lng.toFixed(6)}`
       if (shownStops.has(dedupKey)) continue
       shownStops.add(dedupKey)
 
