@@ -73,8 +73,8 @@ const nearestStop = computed(() => {
   return result?.station ?? null
 })
 watch(nearestStop, (stop) => {
-  // 仅在无 GPS 时自动选中最近站
-  if (stop && !selectedStop.value && mapStore.userLat === null) {
+  // GPS 可用时自动选中最近站（仅在未手动选择时）
+  if (stop && !selectedStop.value) {
     selectedStop.value = stop.name
   }
 }, { immediate: true })
@@ -389,7 +389,7 @@ const nearbyStopArrivals = computed(() => {
             <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
           </div>
           <span v-if="(item as any).departure?.isGaochaoDeparture" class="tags-col">
-            <span class="bus-from">高超楼发车</span>
+            <span class="bus-from">系统楼发车</span>
             <span class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
           </span>
           <span v-else class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>

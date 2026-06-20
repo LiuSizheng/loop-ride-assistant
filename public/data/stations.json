@@ -3,7 +3,7 @@
     "name": "研究生宿舍楼",
     "lat": 28.254768658663618,
     "lng": 113.05156481576397,
-    "serviceRoutes": "HX1_NORMAL, HX1_NORMAL, HX2_NORMAL, HX2_NORMAL, HX3_NORMAL, HX3_NORMAL"
+    "serviceRoutes": "HX1_NORMAL, HX2_NORMAL, HX3_NORMAL"
   },
   {
     "name": "东门",
@@ -45,13 +45,13 @@
     "name": "系统楼",
     "lat": 28.267580755954587,
     "lng": 113.04245902072479,
-    "serviceRoutes": "HX1_NORMAL, HX3_NORMAL, HX1_DINING, HX1_DINING"
+    "serviceRoutes": "HX1_NORMAL, HX3_NORMAL, HX1_DINING"
   },
   {
     "name": "理学院",
     "lat": 28.265605736223364,
     "lng": 113.04248894936585,
-    "serviceRoutes": "HX1_NORMAL, HX3_NORMAL, HX1_DINING, HX1_DINING"
+    "serviceRoutes": "HX1_NORMAL, HX3_NORMAL, HX1_DINING"
   },
   {
     "name": "二食堂",

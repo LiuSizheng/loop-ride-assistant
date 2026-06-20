@@ -22,9 +22,8 @@ const arrivals = computed(() => {
     .filter(p => !p.isDepartureStop && !p.isReturnStop)
     .map((p) => {
       let delta = p.arrivalMinutes * 60 - secondsNow.value
-      if (delta < -3600) return null
       if (delta < -120) return null
-      if (delta > 1800) return null
+      if (delta > 3600) return null
 
       const departure = scheduleStore.departures.find(
         (d) => d.recordId === p.departureId

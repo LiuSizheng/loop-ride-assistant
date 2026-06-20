@@ -67,8 +67,8 @@ export interface RoutePattern {
 export interface Station {
   name: string
   serviceRoutes: string
-  locationNote: string
-  remark: string
+  locationNote?: string
+  remark?: string
   lat: number
   lng: number
 }
@@ -94,6 +94,7 @@ export interface ArrivalPrediction {
   driver: string
   vehicleNo: string
   confidence: Confidence
+  remark?: string
 }
 
 /** 下一班车查询结果 */

@@ -46,25 +46,24 @@ export const useUploadStore = defineStore('upload', () => {
   const scheduleStore = useScheduleStore()
 
   /** 获取当前线路的站点序列 */
-  function getStopsForRoute(route: string): string[] {
-    const rp = scheduleStore.routePatterns.find(p => p.route === route)
+  function getStopsForRoute(routeKey: string): string[] {
+    const rp = scheduleStore.routePatterns.find(p => p.routeKey === routeKey)
     if (!rp) return []
-    // 取对应 routeKey 的 stops，HX1 用 NORMAL，HX2/HX3 同理
     return rp.stops.map(s => s.currentStop)
   }
 
   /** 开始新的一次记录 */
-  function startRecording(route: string) {
+  function startRecording(routeKey: string) {
     recordedSegments.value = []
     segmentSeconds.value = []
     timingActive.value = true
-    const stops = getStopsForRoute(route)
+    const stops = getStopsForRoute(routeKey)
     currentFromStop.value = stops[0] || ''
     startTime.value = Date.now()
   }
 
   /** 在指定站点上车，开始计时 */
-  function startRecordingAt(stopName: string, allStops?: string[]) {
+  function startRecordingAt(stopName: string) {
     recordedSegments.value = []
     segmentSeconds.value = []
     timingActive.value = true
