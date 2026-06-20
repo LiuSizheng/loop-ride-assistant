@@ -19,7 +19,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,json,png,jpg,jpeg,svg,ico}'],
-        maximumFileSizeToCacheInBytes: 2 * 1024 * 1024, // 2MB max (satellite JPEG ~800KB)
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10MB (satellite JPEG ~8MB)
       },
       manifest: false,
     }),

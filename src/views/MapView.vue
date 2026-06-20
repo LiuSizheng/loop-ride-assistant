@@ -21,8 +21,8 @@ const mapContainer = ref<HTMLDivElement>()
 const mapLoading = ref(true)
 
 // ---- 底图参数 ----
-const IMG_W = 1536
-const IMG_H = 2304
+const IMG_W = 5120
+const IMG_H = 7424
 
 // ---- 路线颜色 ----
 const ROUTE_COLORS: Record<string, string> = {

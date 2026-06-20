@@ -4,8 +4,8 @@
  */
 
 // 卫星底图参数（从 download_satellite.mjs 生成，固定不变）
-const TOP_LEFT_TILE_X = 106690
-const TOP_LEFT_TILE_Y = 54796
+const TOP_LEFT_TILE_X = 106683
+const TOP_LEFT_TILE_Y = 54786
 const ZOOM = 17
 const TILE_SIZE = 256
 const N = 2 ** ZOOM

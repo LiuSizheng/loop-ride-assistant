@@ -1,9 +1,9 @@
 /**
  * 从 ESRI 下载卫星瓦片并拼接成校园底图
  *
- * 锚点：系统楼（左上）+ 研究生宿舍楼（右下），向外扩展 300m
+ * 锚点：北门（北）+ 理学院（西）+ 东门（东）+ 305教学楼（南）
+ * 各方向扩展：北3000m / 南3000m / 西2000m / 东2000m
  * GCJ-02 → WGS-84 转换后下载，确保和高德坐标对齐
- * 输出 PNG 保留最高清晰度
  *
  * 运行：node scripts/download_satellite.mjs
  */
@@ -44,26 +44,40 @@ function gcj02ToWgs84(lng, lat) {
   return { lat: lat - dlat2, lng: lng - dlng2 };
 }
 
-// ─── 锚点坐标 (GCJ-02) ───
-const ANCHOR_NW = { lat: 28.267580755954587, lng: 113.04235768504986 }; // 系统楼（左上）
-const ANCHOR_SE = { lat: 28.254768658663618, lng: 113.05146340619099 }; // 研究生宿舍楼（右下）
+// ─── 锚点坐标 (GCJ-02) + 扩展距离 ───
+const ANCHORS = [
+  { name: '北门（北）',   lat: 28.26880260977444, lng: 113.04471599806402, extendNorth: 3000, extendSouth: 0, extendWest: 0, extendEast: 0 },
+  { name: '理学院（西）', lat: 28.265605736223364, lng: 113.04238761527515, extendNorth: 0, extendSouth: 0, extendWest: 2000, extendEast: 0 },
+  { name: '东门（东）',   lat: 28.257171296407726, lng: 113.053557330271,   extendNorth: 0, extendSouth: 0, extendWest: 0, extendEast: 2000 },
+  { name: '305教学楼（南）', lat: 28.254029243737428, lng: 113.04819808336002, extendNorth: 0, extendSouth: 3000, extendWest: 0, extendEast: 0 },
+];
 
-// 转为 WGS-84
-const nwWgs = gcj02ToWgs84(ANCHOR_NW.lng, ANCHOR_NW.lat);
-const seWgs = gcj02ToWgs84(ANCHOR_SE.lng, ANCHOR_SE.lat);
-console.log('锚点 WGS-84:');
-console.log('  系统楼 (NW):', nwWgs.lat.toFixed(6), nwWgs.lng.toFixed(6));
-console.log('  研究生宿舍楼 (SE):', seWgs.lat.toFixed(6), seWgs.lng.toFixed(6));
+// 转为 WGS-84 并计算边界
+const PAD_M = { north: 0, south: 0, west: 0, east: 0 };
+for (const a of ANCHORS) {
+  const wgs = gcj02ToWgs84(a.lng, a.lat);
+  const padLat = a.extendNorth / 111000;
+  const padLng = a.extendWest / (111000 * Math.cos(wgs.lat * Math.PI / 180));
+  PAD_M.north = Math.max(PAD_M.north, a.extendNorth);
+  PAD_M.south = Math.max(PAD_M.south, a.extendSouth);
+  PAD_M.west  = Math.max(PAD_M.west,  a.extendWest);
+  PAD_M.east  = Math.max(PAD_M.east,  a.extendEast);
+  console.log(`  ${a.name}: ${wgs.lat.toFixed(6)}N, ${wgs.lng.toFixed(6)}E`);
+}
 
-// 向外扩展 300m
-const PAD_LAT = 300 / 111000;        // ~0.0027°
-const PAD_LNG = 300 / (111000 * Math.cos(nwWgs.lat * Math.PI / 180)); // ~0.0030°
+// 计算总体边界：取所有锚点 + 各方向最大扩展
+const allWgs = ANCHORS.map(a => gcj02ToWgs84(a.lng, a.lat));
+const avgLat = allWgs.reduce((s, w) => s + w.lat, 0) / allWgs.length;
+const maxNorth = Math.max(...allWgs.map(w => w.lat));
+const maxSouth = Math.min(...allWgs.map(w => w.lat));
+const maxEast  = Math.max(...allWgs.map(w => w.lng));
+const maxWest  = Math.min(...allWgs.map(w => w.lng));
 
 const BOUNDS = {
-  north: nwWgs.lat + PAD_LAT,
-  south: seWgs.lat - PAD_LAT,
-  west: nwWgs.lng - PAD_LNG,
-  east: seWgs.lng + PAD_LNG,
+  north: maxNorth + PAD_M.north / 111000,
+  south: maxSouth - PAD_M.south / 111000,
+  east:  maxEast  + PAD_M.east  / (111000 * Math.cos(avgLat * Math.PI / 180)),
+  west:  maxWest  - PAD_M.west  / (111000 * Math.cos(avgLat * Math.PI / 180)),
 };
 console.log('边界 WGS-84:', BOUNDS);
 
@@ -125,9 +139,22 @@ async function main() {
     create: { width: totalWidth, height: totalHeight, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
   }).composite(rowBuffers.map((buf, i) => ({ input: buf, left: 0, top: i * TILE_SIZE }))).png().toFile(OUTPUT);
 
+  // 更新 bounds 元数据
+  const boundsFile = path.join(__dirname, '..', 'public', 'data', 'satellite-bounds.json');
+  const gcj02Bounds = {
+    north: BOUNDS.north, south: BOUNDS.south, west: BOUNDS.west, east: BOUNDS.east,
+  };
+  fs.writeFileSync(boundsFile, JSON.stringify({
+    topLeftTile: { x: topLeft.x, y: topLeft.y },
+    zoom: ZOOM, tileSize: TILE_SIZE,
+    imageWidth: totalWidth, imageHeight: totalHeight,
+    gcj02Bounds,
+  }, null, 2) + '\n');
+
   const sizeMB = (fs.statSync(OUTPUT).size / 1024 / 1024).toFixed(1);
   console.log(`\n✅ 卫星底图: ${OUTPUT} (${sizeMB}MB)`);
   console.log(`   尺寸: ${totalWidth} × ${totalHeight} px`);
+  console.log(`   元数据: ${boundsFile}`);
 }
 
 main().catch(console.error);
