@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useScheduleStore } from '@/stores/schedule'
 import { useMapStore } from '@/stores/map'
 import { useGeolocation } from '@/composables/useGeolocation'
-import { getDateType, getSecondsSinceMidnight } from '@/utils/datetime'
+import { getDateType } from '@/utils/datetime'
 import { computeActiveBusPositions } from '@/utils/bus_position'
-import { loadAMap } from '@/utils/amap'
+import { gcj02ToPixel } from '@/utils/map_project'
 import { getNow } from '@/utils/time'
 import MapLegend from '@/components/map/MapLegend.vue'
 import StopInfoPanel from '@/components/map/StopInfoPanel.vue'
@@ -17,452 +17,316 @@ const mapStore = useMapStore()
 const route = useRoute()
 useGeolocation()
 
-const mapContainer = ref<HTMLDivElement | null>(null)
+const mapContainer = ref<HTMLDivElement>()
 const mapLoading = ref(true)
-const mapError = ref<string | null>(null)
-let mapInstance: any = null
-let stopMarkers: any[] = []
-let routePolylines: any[] = []
-let userMarker: any = null
-let userMarkerInterval: ReturnType<typeof setInterval> | null = null
 
-// 从首页跳转过来的车辆聚焦（一次性）
-const trackedBusId = ref<string | null>(null)
-let initializing = false
+// ---- 底图参数 ----
+const IMG_W = 1536
+const IMG_H = 2304
 
 // ---- 路线颜色 ----
 const ROUTE_COLORS: Record<string, string> = {
-  HX1_NORMAL: '#2563EB',
-  HX1_DINING: '#F59E0B',
-  HX2_NORMAL: '#10B981',
-  HX3_NORMAL: '#8B5CF6',
-  HX3_GAOCHAO: '#7C3AED',
+  HX1_NORMAL: '#2563EB', HX1_DINING: '#F59E0B',
+  HX2_NORMAL: '#10B981', HX3_NORMAL: '#8B5CF6', HX3_GAOCHAO: '#7C3AED',
 }
-
-function getRouteColor(routeKey: string): string {
-  return ROUTE_COLORS[routeKey] || '#6B7280'
-}
+function getRouteColor(key: string) { return ROUTE_COLORS[key] || '#6B7280' }
 
 // ---- 班次数字提取 ----
-const CN_NUM_MAP: Record<string, number> = {
-  '一': 1, '二': 2, '三': 3, '四': 4, '五': 5,
-  '六': 6, '七': 7, '八': 8, '九': 9, '十': 10,
-}
-
-function extractShiftNumber(shiftName: string): number | null {
-  for (const [cn, n] of Object.entries(CN_NUM_MAP)) {
-    if (shiftName.includes(cn)) return n
-  }
+const CN: Record<string, number> = { 一:1,二:2,三:3,四:4,五:5,六:6,七:7,八:8,九:9,十:10 }
+function extractShiftNum(name: string): number | null {
+  for (const [cn, n] of Object.entries(CN)) { if (name.includes(cn)) return n }
   return null
 }
 
 // ---- 公交车图标 ----
 const BASE_URL = import.meta.env.BASE_URL
-const BUS_ICON_MAP: Record<string, string> = {
-  HX1_NORMAL: 'icons/环线1路.png',
-  HX1_DINING: 'icons/就餐专线.png',
-  HX2_NORMAL: 'icons/环线2路.png',
-  HX3_NORMAL: 'icons/环线3路.png',
-  HX3_GAOCHAO: 'icons/环线3路.png',
+const BUS_ICON: Record<string, string> = {
+  HX1_NORMAL: 'icons/环线1路.png', HX1_DINING: 'icons/就餐专线.png',
+  HX2_NORMAL: 'icons/环线2路.png', HX3_NORMAL: 'icons/环线3路.png', HX3_GAOCHAO: 'icons/环线3路.png',
+}
+function busIconHtml(rk: string, shift: string, heading: number): string {
+  const file = BUS_ICON[rk] || BUS_ICON['HX1_NORMAL']
+  const sz = rk.includes('HX1') ? 42 : 36
+  const badge = extractShiftNum(shift)
+  const badgeHtml = badge !== null
+    ? `<div style="position:absolute;top:-8px;right:-8px;width:18px;height:18px;background:#DC2626;border-radius:50%;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;line-height:1;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.3);z-index:2">${badge}</div>`
+    : ''
+  return `<div style="position:relative;width:${sz}px;height:${sz}px"><img src="${BASE_URL}${file}" width="${sz}" height="${sz}" style="display:block;filter:drop-shadow(0 2px 3px rgba(0,0,0,0.3));transform:rotate(${heading - 90}deg)">${badgeHtml}</div>`
 }
 
-function createBusIconContent(routeKey: string, shiftName: string, heading: number): string {
-  const file = BUS_ICON_MAP[routeKey] || BUS_ICON_MAP['HX1_NORMAL']
-  const size = routeKey.includes('HX1') ? 42 : 36
+// ---- 平移缩放 ----
+const panX = ref(0)
+const panY = ref(0)
+const scale = ref(1)
+const MIN_SCALE = 0.5
+const MAX_SCALE = 4
 
-  const shiftNum = extractShiftNumber(shiftName)
+const layerStyle = computed(() => ({
+  width: IMG_W + 'px', height: IMG_H + 'px',
+  transform: `translate(${panX.value}px,${panY.value}px) scale(${scale.value})`,
+  transformOrigin: '0 0',
+}))
 
-  const badgeHtml = shiftNum !== null ? `
-    <div style="
-      position:absolute;top:-8px;right:-8px;
-      width:18px;height:18px;
-      background:#DC2626;border-radius:50%;
-      color:#fff;font-size:11px;font-weight:700;
-      display:flex;align-items:center;justify-content:center;
-      line-height:1;border:2px solid #fff;
-      box-shadow:0 1px 3px rgba(0,0,0,0.3);
-      z-index:2;
-    ">${shiftNum}</div>` : ''
+let isDragging = false
+let lastX = 0, lastY = 0
+let pinchDist = 0, pinchScale = 1
 
-  return `<div style="
-    position:relative;width:${size}px;height:${size}px;
-  ">
-    <img src="${BASE_URL}${file}" width="${size}" height="${size}"
-      style="display:block;
-        filter:drop-shadow(0 2px 3px rgba(0,0,0,0.3));
-        transform:rotate(${heading - 90}deg);" />
-    ${badgeHtml}
-  </div>`
+function onPointerDown(e: PointerEvent) {
+  if (e.pointerType === 'touch' && (e as any).isPrimary === false) return
+  isDragging = true; lastX = e.clientX; lastY = e.clientY
+  ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
 }
-
-// ---- 站点渲染 ----
-function renderStops() {
-  if (!mapInstance) return
-  stopMarkers.forEach((m) => m.remove())
-  stopMarkers = []
-  routePolylines.forEach((p) => p.remove())
-  routePolylines = []
-
-  // 为每条路线绘制折线
-  for (const pattern of scheduleStore.routePatterns) {
-    if (!mapStore.visibleRoutes.has(pattern.routeKey)) continue
-
-    const path = scheduleStore.routePaths[pattern.routeKey]
-    if (!path || path.length < 2) continue  // 没有路径数据则跳过折线绘制
-
-    const color = getRouteColor(pattern.routeKey)
-    const polyline = new (window as any).AMap.Polyline({
-      path,
-      strokeColor: color,
-      strokeWeight: 3,
-      strokeOpacity: 0.6,
-      strokeStyle: pattern.routeKey === 'HX1_DINING' ? 'dashed' : 'solid',
-      zIndex: 10,
-    })
-    polyline.setMap(mapInstance)
-    routePolylines.push(polyline)
+function onPointerMove(e: PointerEvent) {
+  if (!isDragging) return
+  panX.value += e.clientX - lastX
+  panY.value += e.clientY - lastY
+  lastX = e.clientX; lastY = e.clientY
+}
+function onPointerUp() { isDragging = false }
+function onWheel(e: WheelEvent) {
+  e.preventDefault()
+  const factor = e.deltaY > 0 ? 0.9 : 1.1
+  scale.value = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor))
+}
+function onDblClick(e: MouseEvent) {
+  e.preventDefault()
+  scale.value = Math.min(MAX_SCALE, scale.value * 1.5)
+}
+// 触摸双指缩放
+function onTouchStart(e: TouchEvent) {
+  if (e.touches.length === 2) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX
+    const dy = e.touches[0].clientY - e.touches[1].clientY
+    pinchDist = Math.hypot(dx, dy); pinchScale = scale.value
   }
+}
+function onTouchMove(e: TouchEvent) {
+  if (e.touches.length === 2) {
+    e.preventDefault()
+    const dx = e.touches[0].clientX - e.touches[1].clientX
+    const dy = e.touches[0].clientY - e.touches[1].clientY
+    const dist = Math.hypot(dx, dy)
+    scale.value = Math.max(MIN_SCALE, Math.min(MAX_SCALE, pinchScale * (dist / pinchDist)))
+  }
+}
+function recenterOnUser() {
+  if (mapStore.userLat === null || mapStore.userLng === null) return
+  const p = gcj02ToPixel(mapStore.userLng, mapStore.userLat)
+  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+  scale.value = 1.6
+  panX.value = vw / 2 - p.x * scale.value
+  panY.value = vh / 2 - p.y * scale.value
+  mapStore.recenterOnUser()
+}
 
-  // 站点标记
-  // 每条线路显示自己的站点，同名不同坐标视为不同物理位置各自显示
-  const shownStops = new Set<string>()
+// ---- 路线折线像素坐标 ----
+const routeLines = computed(() => {
+  const lines: Array<{ points: string; color: string; dashed: boolean }> = []
+  for (const p of scheduleStore.routePatterns) {
+    if (!mapStore.visibleRoutes.has(p.routeKey)) continue
+    const path = scheduleStore.routePaths[p.routeKey]
+    if (!path || path.length < 2) continue
+    const pts = path.map(([lng, lat]) => { const px = gcj02ToPixel(lng, lat); return `${px.x},${px.y}` }).join(' ')
+    lines.push({ points: pts, color: getRouteColor(p.routeKey), dashed: p.routeKey === 'HX1_DINING' })
+  }
+  return lines
+})
 
-  for (const pattern of scheduleStore.routePatterns) {
-    const rk = pattern.routeKey
-    if (!mapStore.visibleRoutes.has(rk)) continue
+// ---- 站点标记 ----
+interface StationMarker { x: number; y: number; name: string; color: string; rk: string }
 
-    const stops = scheduleStore.routeStops[rk]
+const stationMarkers = computed<StationMarker[]>(() => {
+  const markers: StationMarker[] = []
+  const shown = new Set<string>()
+  for (const p of scheduleStore.routePatterns) {
+    if (!mapStore.visibleRoutes.has(p.routeKey)) continue
+    const stops = scheduleStore.routeStops[p.routeKey]
     if (!stops) continue
-
-    const color = getRouteColor(rk)
-
-    for (const stop of stops) {
-      const dedupKey = `${rk}|${stop.name}|${stop.lat.toFixed(6)}|${stop.lng.toFixed(6)}`
-      if (shownStops.has(dedupKey)) continue
-      shownStops.add(dedupKey)
-
-      const showLabel = mapStore.showLabels
-      const markerContent = showLabel
-        ? `<div style="position:relative;text-align:center;padding-bottom:7px;">
-            <div style="
-              display:inline-block;padding:2px 6px;border-radius:10px;
-              background:${color};color:#fff;font-size:11px;
-              white-space:nowrap;box-shadow:0 1px 3px rgba(0,0,0,0.3);
-            ">${stop.name}</div>
-            <div style="
-              position:absolute;left:50%;bottom:0;
-              width:10px;height:10px;
-              background:${color};border:2px solid #fff;
-              border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.3);
-              transform:translate(-50%,50%);
-            "></div>
-          </div>`
-        : `<div style="
-            width:10px;height:10px;
-            background:${color};
-            border:2px solid #fff;
-            border-radius:50%;
-            box-shadow:0 1px 3px rgba(0,0,0,0.3);
-          "></div>`
-
-      const marker = new (window as any).AMap.Marker({
-        position: [stop.lng, stop.lat],
-        title: stop.name,
-        content: markerContent,
-        anchor: showLabel ? 'bottom-center' : 'center',
-        zIndex: 50,
-      })
-
-      marker.on('click', () => {
-        mapStore.selectStop(stop.name)
-      })
-
-      marker.setMap(mapInstance)
-      stopMarkers.push(marker)
+    const color = getRouteColor(p.routeKey)
+    for (const s of stops) {
+      const key = `${p.routeKey}|${s.name}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`
+      if (shown.has(key)) continue
+      shown.add(key)
+      const px = gcj02ToPixel(s.lng, s.lat)
+      markers.push({ x: px.x, y: px.y, name: s.name, color, rk: p.routeKey })
     }
   }
-}
+  return markers
+})
 
-// ---- 平滑公交车动画 ----
-const busMarkerMap = new Map<string, any>()
-const lastHeadingMap = new Map<string, number>()
+// ---- 公交车位置 ----
+const busPositions = ref<BusPosition[]>([])
+const busMarkers = computed(() => busPositions.value.map(b => {
+  const px = gcj02ToPixel(b.lng, b.lat)
+  return { ...b, px: px.x, py: px.y }
+}))
+
+// ---- 用户位置 ----
+const userPixel = computed(() => {
+  if (mapStore.userLat === null || mapStore.userLng === null) return null
+  return gcj02ToPixel(mapStore.userLng, mapStore.userLat)
+})
+
+// ---- 动画循环 ----
 let animFrameId: number | null = null
+const trackedBusId = ref<string | null>(null)
 
-function animateBusPositions() {
-  if (!mapInstance) {
-    animFrameId = requestAnimationFrame(animateBusPositions)
-    return
-  }
+function animate() {
+  const now = getNow()
+  const dt = getDateType(now)
+  const deps = scheduleStore.getDepartures(dt)
+  const patternMap = new Map(scheduleStore.routePatterns.map(rp => [rp.routeKey, rp]))
+  const positions = computeActiveBusPositions(deps, patternMap, scheduleStore.stations, scheduleStore.routePaths, now)
+  const visible = positions.filter(p => mapStore.visibleRoutes.has(p.routeKey))
+  busPositions.value = visible
+  mapStore.setBusPositions(visible)
 
-  const currentDate = getNow()
-  const dateType = getDateType(currentDate)
-  const deps = scheduleStore.getDepartures(dateType)
-  const patternMap = new Map(
-    scheduleStore.routePatterns.map((rp) => [rp.routeKey, rp])
-  )
-  const positions = computeActiveBusPositions(
-    deps,
-    patternMap,
-    scheduleStore.stations,
-    scheduleStore.routePaths,
-    currentDate
-  )
-
-  // 按路线可见性筛选
-  const visiblePositions = positions.filter((p) =>
-    mapStore.visibleRoutes.has(p.routeKey)
-  )
-  mapStore.setBusPositions(visiblePositions)
-
-  // 首页联动：一次性聚焦到目标车辆
   if (trackedBusId.value) {
-    const tracked = visiblePositions.find((p) => p.departureId === trackedBusId.value)
-    if (tracked) {
-      mapInstance.setCenter([tracked.lng, tracked.lat])
-      mapInstance.setZoom(16)
-      trackedBusId.value = null // 只聚焦一次
+    const t = visible.find(p => p.departureId === trackedBusId.value)
+    if (t) {
+      const px = gcj02ToPixel(t.lng, t.lat)
+      const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+      const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+      scale.value = 1.6
+      panX.value = vw / 2 - px.x * scale.value
+      panY.value = vh / 2 - px.y * scale.value
+      trackedBusId.value = null
     }
   }
-
-  const activeIds = new Set(visiblePositions.map((p) => p.departureId))
-
-  // 移除不再活跃的标记
-  for (const [id, marker] of busMarkerMap) {
-    if (!activeIds.has(id)) {
-      marker.remove()
-      busMarkerMap.delete(id)
-      lastHeadingMap.delete(id)
-    }
-  }
-
-  // 更新已有标记 / 创建新标记
-  for (const pos of visiblePositions) {
-    const existing = busMarkerMap.get(pos.departureId)
-    if (existing) {
-      existing.setPosition([pos.lng, pos.lat])
-      // 仅在 heading 变化 >10° 时更新图标方向
-      const prevH = lastHeadingMap.get(pos.departureId) ?? -999
-      if (Math.abs(pos.heading - prevH) > 10) {
-        existing.setContent(createBusIconContent(pos.routeKey, pos.shiftName, pos.heading))
-        lastHeadingMap.set(pos.departureId, pos.heading)
-      }
-    } else {
-      const content = createBusIconContent(pos.routeKey, pos.shiftName, pos.heading)
-      const marker = new (window as any).AMap.Marker({
-        position: [pos.lng, pos.lat],
-        content,
-        anchor: 'center',
-        zIndex: 80,
-      })
-      marker.setMap(mapInstance)
-      busMarkerMap.set(pos.departureId, marker)
-      lastHeadingMap.set(pos.departureId, pos.heading)
-    }
-  }
-
-  animFrameId = requestAnimationFrame(animateBusPositions)
+  animFrameId = requestAnimationFrame(animate)
 }
 
-// ---- 用户位置标记 ----
-function updateUserMarker() {
-  if (!mapInstance || mapStore.userLat === null || mapStore.userLng === null) {
-    if (userMarker) {
-      userMarker.remove()
-      userMarker = null
-    }
-    return
-  }
+function selectStop(name: string) { mapStore.selectStop(name) }
 
-  if (!userMarker) {
-    userMarker = new (window as any).AMap.Marker({
-      position: [mapStore.userLng, mapStore.userLat],
-      content: `<div style="
-        width:16px;height:16px;
-        background:#3B82F6;
-        border:3px solid #fff;
-        border-radius:50%;
-        box-shadow:0 0 0 4px rgba(59,130,246,0.3);
-      "></div>`,
-      offset: new (window as any).AMap.Pixel(-8, -8),
-      zIndex: 100,
-    })
-    userMarker.setMap(mapInstance)
-  } else {
-    userMarker.setPosition([mapStore.userLng, mapStore.userLat])
-  }
-}
+// ---- 初始化 ----
+let initializing = false
 
-// ---- 生命周期 ----
-onMounted(async () => {
-  try {
-    await loadAMap()
-    if (!mapContainer.value) return
+onMounted(() => {
+  // 计算初始居中
+  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+  panX.value = (vw - IMG_W) / 2
+  panY.value = (vh - IMG_H) / 2
 
-    let initCenter: [number, number] = [113.042, 28.263]
-    let initZoom = 15
-    if (scheduleStore.stations.length > 0) {
-      const lngs = scheduleStore.stations.map((s) => s.lng)
-      const lats = scheduleStore.stations.map((s) => s.lat)
-      initCenter = [(Math.min(...lngs) + Math.max(...lngs)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2 + 0.002]
-    }
+  // 路线可见性
+  initializing = true
+  const q = route.query
+  if (q.route) { mapStore.toggleRouteOnly(q.route as string) }
+  else { mapStore.setAllRoutesVisible() }
+  initializing = false
 
-    mapInstance = new (window as any).AMap.Map(mapContainer.value, {
-      center: initCenter,
-      zoom: initZoom,
-      layers: [new (window as any).AMap.TileLayer.Satellite()],
-    })
+  animFrameId = requestAnimationFrame(animate)
+  if (q.bus) trackedBusId.value = q.bus as string
 
-    // 重置路线可见性并渲染（用标志位阻止 watch 重复触发）
-    initializing = true
-    const q = route.query
-    if (q.route) {
-      mapStore.toggleRouteOnly(q.route as string)
-    } else {
-      mapStore.setAllRoutesVisible()
-    }
-    initializing = false
-
-    renderStops()
-    animFrameId = requestAnimationFrame(animateBusPositions)
-    userMarkerInterval = setInterval(updateUserMarker, 5000)
-
-    if (q.bus) {
-      trackedBusId.value = q.bus as string
-    }
-
-    mapLoading.value = false
-  } catch (e: any) {
-    mapError.value = e.message || '地图加载失败'
-    mapLoading.value = false
-  }
+  mapLoading.value = false
 })
 
 onUnmounted(() => {
   if (animFrameId) cancelAnimationFrame(animFrameId)
-  if (userMarkerInterval) clearInterval(userMarkerInterval)
-  for (const marker of busMarkerMap.values()) marker.remove()
-  busMarkerMap.clear()
-  if (mapInstance) {
-    mapInstance.destroy()
-    mapInstance = null
-  }
 })
 
-// 当路线可见性变化时重新渲染站点和折线（公交车由动画循环自动筛选）
-watch(() => mapStore.visibleRoutes, () => {
-  if (initializing) return
-  renderStops()
-})
-
-// 当站点标签可见性变化时重新渲染
-watch(() => mapStore.showLabels, () => {
-  renderStops()
-})
-
-// 定位按钮
-function recenterOnUser() {
-  mapStore.recenterOnUser()
-  if (mapInstance && mapStore.userLat !== null && mapStore.userLng !== null) {
-    mapInstance.setCenter([mapStore.userLng, mapStore.userLat])
-    mapInstance.setZoom(16)
-  }
-}
+watch(() => mapStore.visibleRoutes, () => { if (!initializing) {} })
 </script>
 
 <template>
   <div class="map-page">
-    <!-- 加载中 -->
     <div v-if="mapLoading" class="map-loading">
       <van-loading size="32" />
       <span>加载地图...</span>
     </div>
 
-    <!-- 错误 -->
-    <div v-if="mapError" class="map-error">
-      <van-icon name="warning-o" size="32" />
-      <p>{{ mapError }}</p>
-      <p class="map-error-hint">
-        请确保已配置高德地图 API Key
-      </p>
+    <div ref="mapContainer" class="map-viewport"
+      @pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
+      @wheel.prevent="onWheel" @dblclick.prevent="onDblClick"
+      @touchstart.passive="onTouchStart" @touchmove="onTouchMove"
+      style="touch-action:none">
+
+      <div class="map-layer" :style="layerStyle">
+        <!-- 卫星底图 -->
+        <img :src="`${BASE_URL}data/campus-satellite.png`" :width="IMG_W" :height="IMG_H"
+          style="display:block;user-select:none;pointer-events:none" draggable="false">
+
+        <!-- SVG 叠加层 -->
+        <svg :width="IMG_W" :height="IMG_H" style="position:absolute;top:0;left:0;pointer-events:none">
+          <!-- 路线折线 -->
+          <polyline v-for="(line, i) in routeLines" :key="'l'+i"
+            :points="line.points" fill="none" :stroke="line.color"
+            stroke-width="3" stroke-opacity="0.6" :stroke-dasharray="line.dashed ? '8 5' : undefined"
+            stroke-linecap="round" stroke-linejoin="round" />
+
+          <!-- 站点标记 -->
+          <g v-for="(m, i) in stationMarkers" :key="'s'+i"
+            :transform="`translate(${m.x},${m.y})`" @click="selectStop(m.name)"
+            style="cursor:pointer;pointer-events:auto">
+            <template v-if="mapStore.showLabels">
+              <rect :x="-m.name.length * 3.5 - 6" y="-24" :width="m.name.length * 7 + 12" height="20"
+                rx="10" :fill="m.color" />
+              <text x="0" y="-10" text-anchor="middle" fill="#fff" font-size="11"
+                font-weight="600" style="pointer-events:none">{{ m.name }}</text>
+              <circle cx="0" cy="0" r="5" :fill="m.color" stroke="#fff" stroke-width="2"
+                style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))" />
+            </template>
+            <template v-else>
+              <circle cx="0" cy="0" r="5" :fill="m.color" stroke="#fff" stroke-width="2"
+                style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))" />
+            </template>
+          </g>
+
+          <!-- 用户位置 -->
+          <g v-if="userPixel" :transform="`translate(${userPixel.x},${userPixel.y})`">
+            <circle cx="0" cy="0" r="8" fill="#3B82F6" fill-opacity="0.2" stroke="none" />
+            <circle cx="0" cy="0" r="5" fill="#3B82F6" stroke="#fff" stroke-width="3" />
+          </g>
+        </svg>
+
+        <!-- 公交车标记 -->
+        <div v-for="b in busMarkers" :key="b.departureId"
+          class="bus-marker"
+          :style="{ left: b.px + 'px', top: b.py + 'px', transform: 'translate(-50%,-50%)' }"
+          v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
+      </div>
     </div>
 
-    <!-- 地图容器 -->
-    <div ref="mapContainer" class="map-container" />
-
-    <!-- 图例 -->
     <MapLegend />
-
-    <!-- 定位按钮 -->
     <div class="map-controls">
       <div class="locate-btn" @click="recenterOnUser">
         <van-icon name="aim" size="20" />
       </div>
     </div>
-
-    <!-- 站点详情面板 -->
     <StopInfoPanel />
   </div>
 </template>
 
 <style scoped>
 .map-page {
+  position: relative; width: 100%; height: calc(100vh - 60px);
+  overflow: hidden; background: #1a1a1a;
+}
+.map-viewport {
+  width: 100%; height: 100%; overflow: hidden; cursor: grab;
   position: relative;
-  width: 100%;
-  height: calc(100vh - 60px);
 }
-
-.map-page :deep(.amap-logo),
-.map-page :deep(.amap-copyright) {
-  display: none !important;
+.map-viewport:active { cursor: grabbing; }
+.map-layer {
+  position: absolute; top: 0; left: 0;
+  will-change: transform;
 }
-
-.map-container {
-  width: 100%;
-  height: 100%;
+.bus-marker {
+  position: absolute; z-index: 10; pointer-events: none;
 }
-
-.map-loading,
-.map-error {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: var(--color-bg);
-  z-index: 100;
-  gap: 12px;
+.map-loading {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--color-bg); z-index: 100; gap: 12px;
 }
-.map-error p {
-  color: #DC2626;
-}
-.map-error-hint {
-  color: var(--color-text-secondary) !important;
-  font-size: 13px;
-}
-
 .map-controls {
-  position: absolute;
-  bottom: 60px;
-  right: 16px;
-  z-index: 60;
+  position: absolute; bottom: 60px; right: 16px; z-index: 60;
 }
 .locate-btn {
-  width: 44px;
-  height: 44px;
-  background: var(--color-card);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.15);
-  cursor: pointer;
-  color: var(--color-primary);
+  width: 44px; height: 44px; background: var(--color-card); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.15); cursor: pointer; color: var(--color-primary);
 }
-.locate-btn:active {
-  background: #F3F4F6;
-}
+.locate-btn:active { background: #F3F4F6; }
 </style>

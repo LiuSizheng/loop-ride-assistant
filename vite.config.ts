@@ -19,12 +19,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       workbox: {
         globPatterns: ['**/*.{js,css,html,json,png,svg,ico}'],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/webapi\.amap\.com\/.*/,
-            handler: 'NetworkOnly',
-          },
-        ],
+        maximumFileSizeToCacheInBytes: 12 * 1024 * 1024, // 12MB for satellite image
       },
       manifest: false,
     }),
