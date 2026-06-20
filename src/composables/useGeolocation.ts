@@ -1,15 +1,30 @@
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { useMapStore } from '@/stores/map'
 import { useUserStore } from '@/stores/user'
+import { useGlobalLocation } from '@/stores/global-location'
 import { wgs84ToGcj02 } from '@/utils/geo'
 
 export function useGeolocation() {
   const mapStore = useMapStore()
   const userStore = useUserStore()
+  const locationStore = useGlobalLocation()
   const error = ref<string | null>(null)
   let watchId: number | null = null
 
+  // 模拟位置激活时，直接写入 mapStore，切换坐标时自动同步
+  watchEffect(() => {
+    if (locationStore.isActive && locationStore.lat !== null && locationStore.lng !== null) {
+      mapStore.setUserLocation(locationStore.lat, locationStore.lng)
+      userStore.setGpsEnabled(true)
+      userStore.locationPermissionDenied = false
+      error.value = null
+    }
+  })
+
   function startWatching() {
+    // 模拟位置激活时，不启动真实 GPS
+    if (locationStore.isActive) return
+
     if (!navigator.geolocation) {
       error.value = '浏览器不支持定位'
       return
@@ -17,6 +32,9 @@ export function useGeolocation() {
 
     watchId = navigator.geolocation.watchPosition(
       (position) => {
+        // 模拟位置激活期间，忽略真实 GPS 回调
+        if (locationStore.isActive) return
+
         // 过滤低精度定位：accuracy > 50m 时跳过（避免到站检测误判）
         if (position.coords.accuracy > 50) return
 

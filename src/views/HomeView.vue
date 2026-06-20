@@ -38,6 +38,8 @@ const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMi
 const clickFreq = ref<Record<string, number>>({})
 // 站点排序只在页面加载时刷新一次
 const sortedStops = ref<string[]>([])
+// 是否由用户手动点选过站点（手动点选后不自动覆盖）
+const userManuallySelected = ref(false)
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
@@ -73,8 +75,7 @@ const nearestStop = computed(() => {
   return result?.station ?? null
 })
 watch(nearestStop, (stop) => {
-  // GPS 可用时自动选中最近站（仅在未手动选择时）
-  if (stop && !selectedStop.value) {
+  if (!userManuallySelected.value && stop) {
     selectedStop.value = stop.name
   }
 }, { immediate: true })
@@ -82,10 +83,12 @@ watch(nearestStop, (stop) => {
 function selectStop(name: string) {
   if (selectedStop.value === name) {
     selectedStop.value = null // 取消选择，回到默认视图
+    userManuallySelected.value = false
     return
   }
   recordClick(name)
   selectedStop.value = name
+  userManuallySelected.value = true
   stopSearch.value = ''
   showAllArrivals.value = false
 }
@@ -142,7 +145,7 @@ const stopArrivals = computed(() => {
         const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
         if (!dep) continue
         const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
-        if (secondsUntil < -60 || secondsUntil > 3600) continue
+        if (secondsUntil < -300 || secondsUntil > 3600) continue
         const { label, status } = arrivalCountdown(secondsUntil)
         results.push({
           departure: dep,
@@ -203,7 +206,7 @@ const stopArrivals = computed(() => {
         // 目的地到站超过 1 小时 → 跳过
         if (secondsUntilDest > 3600) continue
         // 已过站超过 1 分钟 → 跳过
-        if (secondsUntilCandidate < -60) continue
+        if (secondsUntilCandidate < -300) continue
 
         const isOriginDeparture = candidatePred.isDepartureStop ?? false
         const { label, status } = isOriginDeparture
@@ -236,7 +239,7 @@ const stopArrivals = computed(() => {
       if (p.isDepartureStop || p.isReturnStop) continue
 
       const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
-      if (secondsUntil < -60 || secondsUntil > 3600) continue
+      if (secondsUntil < -300 || secondsUntil > 3600) continue
 
       const { label, status } = arrivalCountdown(secondsUntil)
       const departed = (dep.departureMinutes * 60) <= secondsNow.value
@@ -285,7 +288,7 @@ const nearbyStopArrivals = computed(() => {
       const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
       if (!dep) continue
       const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
-      if (secondsUntil < -60 || secondsUntil > 3600) continue
+      if (secondsUntil < -300 || secondsUntil > 3600) continue
       if (walkSeconds > secondsUntil) continue // 步行赶不上
       const { label, status } = arrivalCountdown(secondsUntil)
       arrivals.push({

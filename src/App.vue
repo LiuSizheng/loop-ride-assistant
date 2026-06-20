@@ -7,10 +7,14 @@ import { initHolidays } from '@/utils/holidays'
 import TabBar from '@/components/layout/TabBar.vue'
 import OfflineBanner from '@/components/common/OfflineBanner.vue'
 import TimeOverride from '@/components/dev/TimeOverride.vue'
+import LocationOverride from '@/components/dev/LocationOverride.vue'
 
 const route = useRoute()
 const scheduleStore = useScheduleStore()
 const { isOnline } = useOnlineStatus()
+
+// 调试工具开关：true 显示时间/位置模拟面板，false 隐藏
+const showDebugTools = true
 
 const showTabBar = computed(() => {
   const tabRoutes = ['home', 'schedule', 'stop', 'upload', 'map']
@@ -33,8 +37,8 @@ onMounted(() => {
     </router-view>
   </div>
   <TabBar v-if="showTabBar" />
-  <!-- 时间覆写悬浮窗（调试用）：改为 true 即可重新显示 -->
-  <TimeOverride v-if="false" />
+  <TimeOverride v-if="showDebugTools" />
+  <LocationOverride v-if="showDebugTools" />
 </template>
 
 <style>

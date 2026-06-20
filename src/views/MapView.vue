@@ -124,6 +124,7 @@ function renderStops() {
   }
 
   // 站点标记
+  // 每条线路显示自己的站点，同名不同坐标视为不同物理位置各自显示
   const shownStops = new Set<string>()
 
   for (const pattern of scheduleStore.routePatterns) {
@@ -136,7 +137,6 @@ function renderStops() {
     const color = getRouteColor(rk)
 
     for (const stop of stops) {
-      // 使用坐标作为去重依据，允许同名但不同坐标的站点都显示
       const dedupKey = `${rk}|${stop.name}|${stop.lat.toFixed(6)}|${stop.lng.toFixed(6)}`
       if (shownStops.has(dedupKey)) continue
       shownStops.add(dedupKey)

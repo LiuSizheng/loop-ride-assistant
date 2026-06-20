@@ -138,7 +138,7 @@ function isOriginHighlighted(stopName: string, idx: number): boolean {
         }">
         <div class="stop-indicator">
           <div v-if="stop.isDepartureStop" class="dot start">发</div>
-          <div v-else-if="stop.isReturnStop" class="dot end">终</div>
+          <div v-else-if="stop.isReturnStop && idx === stops.length - 1" class="dot end">终</div>
           <div v-else class="dot normal"
             :class="{ passed: idx <= busProgress.currentIdx && !busProgress.isBeforeStart }"
             :style="(idx <= busProgress.currentIdx && !busProgress.isBeforeStart) ? { background: routeColor } : {}"

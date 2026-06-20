@@ -40,8 +40,8 @@ function formatSeconds(snapped: number): string {
  * @returns { label, status }
  */
 export function arrivalCountdown(secondsUntil: number): CountdownItem {
-  if (secondsUntil < -60) {
-    return { secondsUntil, label: '', status: 'passed' }  // 已过站超1分钟，移除
+  if (secondsUntil < -300) {
+    return { secondsUntil, label: '', status: 'passed' }  // 已过站超5分钟，移除
   }
   if (secondsUntil <= 15 && secondsUntil >= 0) {
     return { secondsUntil, label: '已到站', status: 'arrived' }
@@ -65,8 +65,8 @@ export function arrivalCountdown(secondsUntil: number): CountdownItem {
  * 显示 30 分钟内的车次，15s 步进
  */
 export function departureCountdown(secondsUntil: number): CountdownItem {
-  if (secondsUntil < -60) {
-    return { secondsUntil, label: '', status: 'passed' }  // 已发车超1分钟，移除
+  if (secondsUntil < -300) {
+    return { secondsUntil, label: '', status: 'passed' }  // 已发车超5分钟，移除
   }
   if (secondsUntil < 0) {
     return { secondsUntil, label: '已发车', status: 'passed' }  // 发车后 15s~1min

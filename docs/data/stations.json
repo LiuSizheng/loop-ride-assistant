@@ -1,162 +1,122 @@
 [
   {
     "name": "研究生宿舍楼",
-    "serviceRoutes": "环线1路、环线2路、环线3路",
-    "locationNote": "三条环线默认发车点，也是回到起点候车的位置",
-    "remark": "预测到站时间按线路+发车模式的累计分钟计算",
-    "lat": 28.257994,
-    "lng": 113.045661
+    "lat": 28.254768658663618,
+    "lng": 113.05146340619099,
+    "serviceRoutes": "HX1_NORMAL,HX2_NORMAL,HX3_NORMAL,HX3_GAOCHAO"
   },
   {
     "name": "东门",
-    "serviceRoutes": "环线1路",
-    "locationNote": "环线1路站点",
-    "remark": "",
-    "lat": 28.260392,
-    "lng": 113.047749
+    "lat": 28.257171296407726,
+    "lng": 113.053557330271,
+    "serviceRoutes": "HX1_NORMAL"
   },
   {
     "name": "2号宿舍楼",
-    "serviceRoutes": "环线1路、环线3路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.259585,
-    "lng": 113.051624
+    "lat": 28.25958519159876,
+    "lng": 113.05162424945273,
+    "serviceRoutes": "HX1_NORMAL,HX3_NORMAL,HX3_GAOCHAO"
   },
   {
     "name": "军体活动中心",
-    "serviceRoutes": "环线1路、环线2路、环线3路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.264276,
-    "lng": 113.042703
+    "lat": 28.26104419786618,
+    "lng": 113.04849752728376,
+    "serviceRoutes": "HX1_NORMAL,HX2_NORMAL,HX3_NORMAL,HX3_GAOCHAO"
   },
   {
     "name": "激光所",
-    "serviceRoutes": "环线1路、环线3路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.269064,
-    "lng": 113.042397
+    "lat": 28.265831700594212,
+    "lng": 113.04819103564319,
+    "serviceRoutes": "HX1_NORMAL,HX3_NORMAL,HX3_GAOCHAO"
   },
   {
     "name": "超算中心",
-    "serviceRoutes": "环线1路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.268247,
-    "lng": 113.047286
+    "lat": 28.26824670716303,
+    "lng": 113.04728559655538,
+    "serviceRoutes": "HX1_NORMAL"
   },
   {
     "name": "北门",
-    "serviceRoutes": "环线1路",
-    "locationNote": "环线1路站点",
-    "remark": "",
-    "lat": 28.268803,
-    "lng": 113.044716
-  },
-  {
-    "name": "高超楼",
-    "serviceRoutes": "环线1路、环线3路",
-    "locationNote": "系统工程学院旁，与系统楼相邻",
-    "remark": "环线1路打勾车次在此发车后走就餐专线",
-    "lat": 28.26827,
-    "lng": 113.042367
-  },
-  {
-    "name": "理学院",
-    "serviceRoutes": "环线1路、环线3路、就餐专线",
-    "locationNote": "至二食堂约1km",
-    "remark": "",
-    "lat": 28.265606,
-    "lng": 113.042388
-  },
-  {
-    "name": "二食堂",
-    "serviceRoutes": "环线1路、环线2路、环线3路、就餐专线",
-    "locationNote": "共用站点",
-    "remark": "",
-    "lat": 28.257169,
-    "lng": 113.043659
-  },
-  {
-    "name": "一食堂",
-    "serviceRoutes": "环线2路、环线3路、就餐专线",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.256689,
-    "lng": 113.050786
-  },
-  {
-    "name": "305教学楼",
-    "serviceRoutes": "环线1路、环线2路、环线3路、就餐专线",
-    "locationNote": "共用站点",
-    "remark": "",
-    "lat": 28.257262,
-    "lng": 113.042405
-  },
-  {
-    "name": "5号宿舍楼",
-    "serviceRoutes": "环线1路、环线2路、就餐专线",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.255122,
-    "lng": 113.045589
-  },
-  {
-    "name": "二食堂北",
-    "serviceRoutes": "就餐专线",
-    "locationNote": "就餐专线站点，位于二食堂北侧",
-    "remark": "环线1路打勾车次专用站点",
-    "lat": 28.257219,
-    "lng": 113.043661
-  },
-  {
-    "name": "门诊部",
-    "serviceRoutes": "环线2路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.257237,
-    "lng": 113.053067
-  },
-  {
-    "name": "1号宿舍楼",
-    "serviceRoutes": "环线2路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.260096,
-    "lng": 113.050668
-  },
-  {
-    "name": "水上训练中心",
-    "serviceRoutes": "环线2路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.259408,
-    "lng": 113.045238
-  },
-  {
-    "name": "图书馆",
-    "serviceRoutes": "环线3路",
-    "locationNote": "根据路线图途径站点整理",
-    "remark": "",
-    "lat": 28.25682,
-    "lng": 113.050743
+    "lat": 28.26880260977444,
+    "lng": 113.04471599806402,
+    "serviceRoutes": "HX1_NORMAL"
   },
   {
     "name": "系统楼",
-    "serviceRoutes": "环线1路、环线3路、就餐专线",
-    "locationNote": "系统工程学院所在地，与高超楼相邻；就餐专线起终点",
-    "remark": "原高超楼发车车次改为系统楼发车",
-    "lat": 28.270827,
-    "lng": 113.036581
+    "lat": 28.267580755954587,
+    "lng": 113.04235768504986,
+    "serviceRoutes": "HX1_NORMAL,HX3_NORMAL,HX1_DINING,HX3_GAOCHAO"
+  },
+  {
+    "name": "理学院",
+    "lat": 28.265605736223364,
+    "lng": 113.04238761527515,
+    "serviceRoutes": "HX1_NORMAL,HX3_NORMAL,HX1_DINING,HX3_GAOCHAO"
+  },
+  {
+    "name": "二食堂",
+    "lat": 28.25716852558667,
+    "lng": 113.04365883031853,
+    "serviceRoutes": "HX1_NORMAL,HX2_NORMAL,HX3_NORMAL,HX1_DINING,HX3_GAOCHAO"
+  },
+  {
+    "name": "5号宿舍楼",
+    "lat": 28.25512213406017,
+    "lng": 113.04558949582977,
+    "serviceRoutes": "HX1_NORMAL,HX2_NORMAL,HX1_DINING"
+  },
+  {
+    "name": "305教学楼",
+    "lat": 28.254029243737428,
+    "lng": 113.04819808336002,
+    "serviceRoutes": "HX1_NORMAL,HX2_NORMAL,HX3_NORMAL,HX1_DINING,HX3_GAOCHAO"
+  },
+  {
+    "name": "一食堂",
+    "lat": 28.256689221389852,
+    "lng": 113.05078567512072,
+    "serviceRoutes": "HX2_NORMAL,HX3_NORMAL,HX1_DINING,HX3_GAOCHAO"
+  },
+  {
+    "name": "门诊部",
+    "lat": 28.257237246306655,
+    "lng": 113.05306701029527,
+    "serviceRoutes": "HX2_NORMAL"
+  },
+  {
+    "name": "1号宿舍楼",
+    "lat": 28.260096088255118,
+    "lng": 113.05066762522969,
+    "serviceRoutes": "HX2_NORMAL"
+  },
+  {
+    "name": "水上训练中心",
+    "lat": 28.259408448240755,
+    "lng": 113.04523779533798,
+    "serviceRoutes": "HX2_NORMAL"
   },
   {
     "name": "网球场",
-    "serviceRoutes": "环线3路",
-    "locationNote": "环线3路站点，替代教勤连",
-    "remark": "",
-    "lat": 28.265592,
-    "lng": 113.04268
+    "lat": 28.262360200314628,
+    "lng": 113.0484745694942,
+    "serviceRoutes": "HX3_NORMAL,HX3_GAOCHAO"
+  },
+  {
+    "name": "高超楼",
+    "lat": 28.26760686222554,
+    "lng": 113.04361355084495,
+    "serviceRoutes": "HX3_NORMAL,HX3_GAOCHAO"
+  },
+  {
+    "name": "图书馆",
+    "lat": 28.25682012991011,
+    "lng": 113.05074256513663,
+    "serviceRoutes": "HX3_NORMAL,HX3_GAOCHAO"
+  },
+  {
+    "name": "二食堂北",
+    "lat": 28.257218532366668,
+    "lng": 113.0436608405717,
+    "serviceRoutes": "HX1_DINING"
   }
 ]

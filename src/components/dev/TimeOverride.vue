@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useGlobalTime } from '@/stores/global-time'
 
 const store = useGlobalTime()
@@ -9,9 +9,29 @@ const open = ref(false)
 const dateInput = ref('')
 const timeInput = ref('')
 
+// 实时模拟时间显示（直接 ref，每秒覆写）
+const timeDisplay = ref('')
+let tickTimer: ReturnType<typeof setInterval> | null = null
+
+function updateDisplay() {
+  if (!store.isActive) { timeDisplay.value = ''; return }
+  const d = store.getNow()
+  timeDisplay.value =
+    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`
+}
+
+onMounted(() => {
+  updateDisplay()
+  tickTimer = setInterval(updateDisplay, 1000)
+})
+onUnmounted(() => {
+  if (tickTimer) clearInterval(tickTimer)
+})
+
 function apply() {
   if (dateInput.value && timeInput.value) {
     store.setSimulated(`${dateInput.value}T${timeInput.value}`)
+    open.value = false
   }
 }
 
@@ -19,12 +39,14 @@ function preset(dayOffset: number, hour: number, minute: number) {
   const d = new Date() // real today for base
   d.setDate(d.getDate() + dayOffset)
   store.setDateTime(d.getFullYear(), d.getMonth() + 1, d.getDate(), hour, minute)
+  open.value = false
 }
 
 function resetAll() {
   store.reset()
   dateInput.value = ''
   timeInput.value = ''
+  open.value = false
 }
 
 // 当前模拟时间显示
@@ -44,7 +66,8 @@ function simDisplay(): string {
       :class="{ active: store.isActive }"
       @click="open = !open"
     >
-      ⏱
+      <span v-if="store.isActive" class="torch-time-text">{{ timeDisplay }}</span>
+      <span v-else>⏱</span>
     </div>
 
     <!-- 面板 -->
@@ -94,9 +117,8 @@ function simDisplay(): string {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .torch-btn {
-  width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: 20px;
   background: rgba(0, 0, 0, 0.75);
   color: #fff;
   font-size: 18px;
@@ -107,7 +129,14 @@ function simDisplay(): string {
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   user-select: none;
   border: 2px solid transparent;
-  transition: border 0.2s;
+  transition: border 0.2s, padding 0.2s;
+  padding: 0 12px;
+}
+.torch-time-text {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.5px;
 }
 .torch-btn.active {
   border-color: #F59E0B;
