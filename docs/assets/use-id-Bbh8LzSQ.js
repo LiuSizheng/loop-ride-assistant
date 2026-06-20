@@ -1,0 +1,1 @@
+import{M as o,ah as e}from"./index-CA3SNKKr.js";function u(n){const t=e();t&&o(t.proxy,n)}let s=0;function a(){const n=e(),{name:t="unknown"}=(n==null?void 0:n.type)||{};return`${t}-${++s}`}export{u as a,a as u};
