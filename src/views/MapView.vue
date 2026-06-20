@@ -58,9 +58,17 @@ function busIconHtml(rk: string, shift: string, heading: number): string {
 const panX = ref(0)
 const panY = ref(0)
 const scale = ref(1)
-const MIN_SCALE = 0.5
 const MAX_SCALE = 4
 const BOUND_BUFFER = 200 // 拖拽边界留白
+
+// 动态最小缩放：让整张图能放进屏幕（留 40px 边距）
+const MIN_SCALE = computed(() => {
+  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+  const fitW = (vw - 40) / IMG_W
+  const fitH = (vh - 40) / IMG_H
+  return Math.min(fitW, fitH, 0.15) // 上限 0.15，桌面端不会缩太小
+})
 
 const layerStyle = computed(() => ({
   width: IMG_W + 'px', height: IMG_H + 'px',
@@ -100,7 +108,7 @@ function onPointerUp() { isDragging = false }
 function onWheel(e: WheelEvent) {
   e.preventDefault()
   const factor = e.deltaY > 0 ? 0.9 : 1.1
-  const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale.value * factor))
+  const newScale = Math.max(MIN_SCALE.value, Math.min(MAX_SCALE, scale.value * factor))
   const ratio = newScale / scale.value
   // 保持光标位置不变：pan += (1 - ratio) * (cursor - pan)
   panX.value = e.clientX - (e.clientX - panX.value) * ratio
@@ -142,7 +150,7 @@ function onTouchMove(e: TouchEvent) {
     const dx = e.touches[0].clientX - e.touches[1].clientX
     const dy = e.touches[0].clientY - e.touches[1].clientY
     const dist = Math.hypot(dx, dy)
-    const newScale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, pinchScale * (dist / pinchDist)))
+    const newScale = Math.max(MIN_SCALE.value, Math.min(MAX_SCALE, pinchScale * (dist / pinchDist)))
     // 双指中心新位置
     const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2
     const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2
@@ -166,13 +174,13 @@ function recenterOnUser() {
   mapStore.recenterOnUser()
 }
 
-// 一键回中（当地图拖丢时）
+// 一键回中（适配屏幕大小）
 function recenterMap() {
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
-  scale.value = 1
-  panX.value = (vw - IMG_W) / 2
-  panY.value = (vh - IMG_H) / 2
+  scale.value = MIN_SCALE.value
+  panX.value = (vw - IMG_W * scale.value) / 2
+  panY.value = (vh - IMG_H * scale.value) / 2
 }
 
 // ---- 路线折线像素坐标 ----
@@ -258,11 +266,12 @@ function selectStop(name: string) { mapStore.selectStop(name) }
 let initializing = false
 
 onMounted(() => {
-  // 计算初始居中
+  // 计算初始居中（适配屏幕大小显示全图）
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
-  panX.value = (vw - IMG_W) / 2
-  panY.value = (vh - IMG_H) / 2
+  scale.value = MIN_SCALE.value
+  panX.value = (vw - IMG_W * scale.value) / 2
+  panY.value = (vh - IMG_H * scale.value) / 2
 
   // 路线可见性
   initializing = true
