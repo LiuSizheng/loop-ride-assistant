@@ -11,11 +11,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **框架**：Vue 3 + TypeScript + Vite
 - **状态管理**：Pinia（setup 语法）
 - **UI 组件**：Vant 4（van-tabs, van-radio-group, van-button 等）
-- **地图**：高德地图 JS API 2.0（key: beb757969a119ae1677916f193cbc3fb）
+- **地图**：静态卫星底图（ESRI World Imagery 瓦片拼接，JPEG ~6MB）+ SVG 路线/站点叠加层，零 API 调用
 - **数据库**：Supabase（measurements 表，存储用户乘车记录）
 - **部署**：GitHub Pages（`docs/` 目录），通过 `npm run deploy` 构建并复制
 - **PWA**：vite-plugin-pwa，workbox generateSW 模式
-- **坐标系**：WGS-84 → GCJ-02 转换（高德地图需要）
+- **坐标系**：GCJ-02 ↔ WGS-84 转换（卫星瓦片用 WGS-84，站点数据用 GCJ-02）
 
 ## 已实现的功能
 
@@ -36,11 +36,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 选择站点查看经过该站的所有车次到站预测
 
 ### 地图（MapView）
-- 高德卫星地图展示三条环线折线和站点标记
+- 静态卫星底图（ESRI 瓦片拼接 JPEG）+ SVG 路线折线和站点标记叠加层
+- CSS transform 实现平移缩放（双指缩放以手指中心为基准，滚轮以光标为中心）
+- 动态最小缩放比例：根据屏幕尺寸自适应，手机上可缩到看全图
 - 实时公交车位置动画（基于发车时刻和站间秒数推算）
 - 公交车图标带班次编号角标
 - 点击站点弹出到站信息面板（StopInfoPanel）
 - 从首页车次卡片可跳转聚焦到对应车辆
+- 定位按钮（用户 GPS 位置蓝点）+ 回中按钮（地图拖丢时恢复）
 
 ### 记录上传（UploadView）
 - Tab 1 手动记录：选线路、选上车站、逐站按计时按钮记录段耗时
@@ -67,6 +70,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `route_stops.json` | 各路线站点坐标（含 lat, lng） |
 | `stations.json` | 所有站点字典（含 name, lat, lng, serviceRoutes） |
 | `route_paths.json` | 各路线折线坐标（用于地图绘制和离开检测） |
+| `satellite-bounds.json` | 卫星底图元数据（topLeftTile, zoom, tileSize, imageWidth, imageHeight, gcj02Bounds） |
+| `campus-satellite.jpg` | 卫星底图 JPEG（5120×7424px，~6MB，ESRI 瓦片拼接） |
+
+### 卫星底图工具
+
+| 文件 | 用途 |
+|---|---|
+| `scripts/download_satellite.mjs` | 从 ESRI 下载卫星瓦片并拼接（锚点：北门北3km + 305教学楼南3km + 理学院西2km + 东门东2km） |
+| `src/utils/map_project.ts` | GCJ-02 → WGS-84 → 底图像素坐标投影（用于 SVG 叠加层定位） |
 
 ### Excel 中关键工作表
 
@@ -343,7 +355,7 @@ git checkout dev-time-sim
 
 ## 开发交互日志摘要
 
-项目经过 13 轮关键对话完成：
+项目经过 15 轮关键对话完成：
 
 1. 识别环线1路图片
 2. 修正夜班名称，识别环线2路/3路
@@ -358,6 +370,8 @@ git checkout dev-time-sim
 11. 生成本 Markdown 日志
 12. 开发 Vue 3 PWA 小程序（首页、地图、记录上传）
 13. 实现自动记录功能（GPS 到站检测、离开检测、自动提交）
+14. 静态卫星地图替换高德 API（ESRI 瓦片拼接 + SVG 叠加层，零 API 调用）
+15. 扩大卫星底图范围（北3km+南3km+西2km+东2km），优化缩放交互
 
 关键决策：
 - 系统工程学院发车统一按高超楼处理
@@ -365,6 +379,7 @@ git checkout dev-time-sim
 - 使用秒级精度而非分钟级
 - 环线起终点同站需要特殊处理（过滤 isDepartureStop 和 isReturnStop）
 - 部署使用 GitHub Pages（docs/ 目录）
+- 地图改用静态卫星底图，彻底移除高德 API 依赖
 
 ## 关键注意事项
 
@@ -375,6 +390,6 @@ git checkout dev-time-sim
 5. 工作日环线2路 17:10 和 21:30 是推测待确认
 6. 预测到站时间是估算结果
 7. 所有路线都是环线，起终点同站需要特殊处理（见上文）
-8. 高德地图使用 GCJ-02 坐标系，GPS 数据需要 WGS-84 → GCJ-02 转换
+8. 卫星底图使用 WGS-84 坐标系，站点数据使用 GCJ-02 坐标系，需要互相转换
 9. 导出 Excel 时不要使用内置表格对象，避免 `/xl/tables/table*.xml` 修复提示
 10. `TimeOverride` 时间覆写悬浮窗已隐藏（`v-if="false"`），调试时改为 `true` 即可恢复
