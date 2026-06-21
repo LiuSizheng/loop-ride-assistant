@@ -45,11 +45,12 @@ function gcj02ToWgs84(lng, lat) {
 }
 
 // ─── 锚点坐标 (GCJ-02) + 扩展距离 ───
+// 只保留校园区域，减少到 500m 边距
 const ANCHORS = [
-  { name: '北门（北）',   lat: 28.26880260977444, lng: 113.04471599806402, extendNorth: 3000, extendSouth: 0, extendWest: 0, extendEast: 0 },
-  { name: '理学院（西）', lat: 28.265605736223364, lng: 113.04238761527515, extendNorth: 0, extendSouth: 0, extendWest: 2000, extendEast: 0 },
-  { name: '东门（东）',   lat: 28.257171296407726, lng: 113.053557330271,   extendNorth: 0, extendSouth: 0, extendWest: 0, extendEast: 2000 },
-  { name: '305教学楼（南）', lat: 28.254029243737428, lng: 113.04819808336002, extendNorth: 0, extendSouth: 3000, extendWest: 0, extendEast: 0 },
+  { name: '北门（北）',   lat: 28.26880260977444, lng: 113.04471599806402, extendNorth: 600, extendSouth: 0, extendWest: 0, extendEast: 0 },
+  { name: '理学院（西）', lat: 28.265605736223364, lng: 113.04238761527515, extendNorth: 0, extendSouth: 0, extendWest: 800, extendEast: 0 },
+  { name: '东门（东）',   lat: 28.257171296407726, lng: 113.053557330271,   extendNorth: 0, extendSouth: 0, extendWest: 0, extendEast: 800 },
+  { name: '305教学楼（南）', lat: 28.254029243737428, lng: 113.04819808336002, extendNorth: 0, extendSouth: 600, extendWest: 0, extendEast: 0 },
 ];
 
 // 转为 WGS-84 并计算边界

@@ -125,7 +125,19 @@ export const useAutoRecordStore = defineStore('autoRecord', () => {
   // ---- 动作 ----
 
   function startSession(route: string, manualStop?: string) {
-    const rk = ROUTE_TO_KEY[route] || ''
+    let rk = ROUTE_TO_KEY[route] || ''
+
+    // 环线3路 GPS 感知：距系统楼更近 → HX3_GAOCHAO，否则 HX3_NORMAL
+    if (route === '环线3路' && lastLat.value !== null && lastLng.value !== null) {
+      const sysStop = scheduleStore.routeStops['HX3_GAOCHAO']?.[0] // 系统楼（首发站）
+      const yjsStop = scheduleStore.routeStops['HX3_NORMAL']?.[0]  // 研究生宿舍楼（首发站）
+      if (sysStop && yjsStop) {
+        const dSys = haversineDistance(lastLat.value, lastLng.value, sysStop.lat, sysStop.lng)
+        const dYjs = haversineDistance(lastLat.value, lastLng.value, yjsStop.lat, yjsStop.lng)
+        if (dSys < dYjs) rk = 'HX3_GAOCHAO'
+      }
+    }
+
     if (!rk) { error.value = '无法识别路线'; return }
 
     const stopList = scheduleStore.routeStops[rk]

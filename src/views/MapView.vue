@@ -6,7 +6,7 @@ import { useMapStore } from '@/stores/map'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { getDateType } from '@/utils/datetime'
 import { computeActiveBusPositions } from '@/utils/bus_position'
-import { gcj02ToPixel } from '@/utils/map_project'
+import { gcj02ToPixel, wgs84ToPixel } from '@/utils/map_project'
 import { getNow } from '@/utils/time'
 import MapLegend from '@/components/map/MapLegend.vue'
 import StopInfoPanel from '@/components/map/StopInfoPanel.vue'
@@ -21,8 +21,8 @@ const mapContainer = ref<HTMLDivElement>()
 const mapLoading = ref(true)
 
 // ---- 底图参数 ----
-const IMG_W = 5120
-const IMG_H = 7424
+const IMG_W = 2816
+const IMG_H = 2816
 
 // ---- 路线颜色 ----
 const ROUTE_COLORS: Record<string, string> = {
@@ -59,16 +59,6 @@ const panX = ref(0)
 const panY = ref(0)
 const scale = ref(1)
 const MAX_SCALE = 4
-const BOUND_BUFFER = 200 // 拖拽边界留白
-
-// 动态最小缩放：让整张图能放进屏幕（留 40px 边距）
-const MIN_SCALE = computed(() => {
-  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
-  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
-  const fitW = (vw - 40) / IMG_W
-  const fitH = (vh - 40) / IMG_H
-  return Math.min(fitW, fitH, 0.15) // 上限 0.15，桌面端不会缩太小
-})
 
 const layerStyle = computed(() => ({
   width: IMG_W + 'px', height: IMG_H + 'px',
@@ -76,15 +66,42 @@ const layerStyle = computed(() => ({
   transformOrigin: '0 0',
 }))
 
-// 判断地图是否偏离太远
+// ---- 固定视觉大小（使用 SVG vector-effect）----
+// 基准值（固定像素大小，不随缩放变化）
+const STROKE_WIDTH = 3
+const FONT_SIZE = 10
+const CIRCLE_RADIUS = 4
+const LABEL_PADDING_X = 8
+const LABEL_PADDING_Y = 4
+const LABEL_HEIGHT = 20
+const LABEL_RX = 10
+
+// ---- 边界限制（防止显示黑色区域）----
+function clampPan() {
+  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+  const scaledW = IMG_W * scale.value
+  const scaledH = IMG_H * scale.value
+
+  // 限制：图片边缘不能拖进屏幕内（最小为0，最大为屏幕尺寸减去图片尺寸）
+  panX.value = Math.min(0, Math.max(vw - scaledW, panX.value))
+  panY.value = Math.min(0, Math.max(vh - scaledH, panY.value))
+}
+
+// 最小缩放：图片至少能占满屏幕
+const MIN_SCALE = computed(() => {
+  const vw = mapContainer.value?.clientWidth ?? window.innerWidth
+  const vh = mapContainer.value?.clientHeight ?? window.innerHeight
+  return Math.max(vw / IMG_W, vh / IMG_H)
+})
+
+// 判断地图是否偏离太远（有边界限制时基本不会触发）
 const isMapLost = computed(() => {
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
   const imgRight = panX.value + IMG_W * scale.value
   const imgBottom = panY.value + IMG_H * scale.value
-  // 图片完全不在视口内
-  return imgRight < -BOUND_BUFFER || panX.value > vw + BOUND_BUFFER
-      || imgBottom < -BOUND_BUFFER || panY.value > vh + BOUND_BUFFER
+  return imgRight < 0 || panX.value > vw || imgBottom < 0 || panY.value > vh
 })
 
 // ---- 单指拖拽 ----
@@ -101,6 +118,7 @@ function onPointerMove(e: PointerEvent) {
   panX.value += e.clientX - lastX
   panY.value += e.clientY - lastY
   lastX = e.clientX; lastY = e.clientY
+  clampPan() // 应用边界限制
 }
 function onPointerUp() { isDragging = false }
 
@@ -114,6 +132,7 @@ function onWheel(e: WheelEvent) {
   panX.value = e.clientX - (e.clientX - panX.value) * ratio
   panY.value = e.clientY - (e.clientY - panY.value) * ratio
   scale.value = newScale
+  clampPan() // 应用边界限制
 }
 
 // ---- 双击缩放（以点击位置为中心） ----
@@ -124,6 +143,7 @@ function onDblClick(e: MouseEvent) {
   panX.value = e.clientX - (e.clientX - panX.value) * ratio
   panY.value = e.clientY - (e.clientY - panY.value) * ratio
   scale.value = newScale
+  clampPan() // 应用边界限制
 }
 
 // ---- 双指缩放（以双指中心为基准） ----
@@ -159,6 +179,7 @@ function onTouchMove(e: TouchEvent) {
     panX.value = cx - (pinchCenterX - pinchPanX) * ratio
     panY.value = cy - (pinchCenterY - pinchPanY) * ratio
     scale.value = newScale
+    clampPan() // 应用边界限制
   }
 }
 
@@ -171,16 +192,51 @@ function recenterOnUser() {
   scale.value = 1.6
   panX.value = vw / 2 - p.x * scale.value
   panY.value = vh / 2 - p.y * scale.value
+  clampPan() // 应用边界限制
   mapStore.recenterOnUser()
 }
 
-// 一键回中（适配屏幕大小）
+// 一键回中（显示整个校园线路）
 function recenterMap() {
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
-  scale.value = MIN_SCALE.value
-  panX.value = (vw - IMG_W * scale.value) / 2
-  panY.value = (vh - IMG_H * scale.value) / 2
+
+  // 计算所有站点的边界范围
+  let minLng = Infinity, maxLng = -Infinity
+  let minLat = Infinity, maxLat = -Infinity
+
+  for (const station of scheduleStore.stations) {
+    minLng = Math.min(minLng, station.lng)
+    maxLng = Math.max(maxLng, station.lng)
+    minLat = Math.min(minLat, station.lat)
+    maxLat = Math.max(maxLat, station.lat)
+  }
+
+  // 计算边界中心点
+  const centerLng = (minLng + maxLng) / 2
+  const centerLat = (minLat + maxLat) / 2
+  const centerPx = wgs84ToPixel(centerLng, centerLat)
+
+  // 计算边界像素范围
+  const topLeft = wgs84ToPixel(minLng, maxLat)
+  const bottomRight = wgs84ToPixel(maxLng, minLat)
+  const boundsW = bottomRight.x - topLeft.x
+  const boundsH = bottomRight.y - topLeft.y
+
+  // 计算合适的缩放比例，留出边距（上多下少，整体放大）
+  const paddingTop = 60
+  const paddingBottom = 30
+  const paddingLeft = 50
+  const paddingRight = 50
+  const scaleX = (vw - paddingLeft - paddingRight) / boundsW
+  const scaleY = (vh - paddingTop - paddingBottom) / boundsH
+  const initialScale = Math.min(scaleX, scaleY, 0.6)
+
+  // 居中显示整个校园
+  scale.value = initialScale
+  panX.value = vw / 2 - centerPx.x * scale.value
+  panY.value = (vh - paddingBottom + paddingTop) / 2 - centerPx.y * scale.value
+  clampPan() // 应用边界限制
 }
 
 // ---- 路线折线像素坐标 ----
@@ -190,11 +246,19 @@ const routeLines = computed(() => {
     if (!mapStore.visibleRoutes.has(p.routeKey)) continue
     const path = scheduleStore.routePaths[p.routeKey]
     if (!path || path.length < 2) continue
-    const pts = path.map(([lng, lat]) => { const px = gcj02ToPixel(lng, lat); return `${px.x},${px.y}` }).join(' ')
+    const pts = path.map(([lng, lat]) => { const px = wgs84ToPixel(lng, lat); return `${px.x},${px.y}` }).join(' ')
     lines.push({ points: pts, color: getRouteColor(p.routeKey), dashed: p.routeKey === 'HX1_DINING' })
   }
   return lines
 })
+
+// 转换路线点坐标到屏幕位置
+function transformPoints(pointsStr: string): string {
+  return pointsStr.split(' ').map(p => {
+    const [x, y] = p.split(',').map(Number)
+    return `${panX.value + x * scale.value},${panY.value + y * scale.value}`
+  }).join(' ')
+}
 
 // ---- 站点标记 ----
 interface StationMarker { x: number; y: number; name: string; color: string; rk: string }
@@ -211,7 +275,7 @@ const stationMarkers = computed<StationMarker[]>(() => {
       const key = `${p.routeKey}|${s.name}|${s.lat.toFixed(6)}|${s.lng.toFixed(6)}`
       if (shown.has(key)) continue
       shown.add(key)
-      const px = gcj02ToPixel(s.lng, s.lat)
+      const px = wgs84ToPixel(s.lng, s.lat)
       markers.push({ x: px.x, y: px.y, name: s.name, color, rk: p.routeKey })
     }
   }
@@ -221,7 +285,7 @@ const stationMarkers = computed<StationMarker[]>(() => {
 // ---- 公交车位置 ----
 const busPositions = ref<BusPosition[]>([])
 const busMarkers = computed(() => busPositions.value.map(b => {
-  const px = gcj02ToPixel(b.lng, b.lat)
+  const px = wgs84ToPixel(b.lng, b.lat)
   return { ...b, px: px.x, py: px.y }
 }))
 
@@ -240,7 +304,7 @@ function animate() {
   const dt = getDateType(now)
   const deps = scheduleStore.getDepartures(dt)
   const patternMap = new Map(scheduleStore.routePatterns.map(rp => [rp.routeKey, rp]))
-  const positions = computeActiveBusPositions(deps, patternMap, scheduleStore.stations, scheduleStore.routePaths, now)
+  const positions = computeActiveBusPositions(deps, patternMap, scheduleStore.stations, scheduleStore.routePaths, scheduleStore.routeStops, now)
   const visible = positions.filter(p => mapStore.visibleRoutes.has(p.routeKey))
   busPositions.value = visible
   mapStore.setBusPositions(visible)
@@ -248,12 +312,13 @@ function animate() {
   if (trackedBusId.value) {
     const t = visible.find(p => p.departureId === trackedBusId.value)
     if (t) {
-      const px = gcj02ToPixel(t.lng, t.lat)
+      const px = wgs84ToPixel(t.lng, t.lat)
       const vw = mapContainer.value?.clientWidth ?? window.innerWidth
       const vh = mapContainer.value?.clientHeight ?? window.innerHeight
       scale.value = 1.6
       panX.value = vw / 2 - px.x * scale.value
       panY.value = vh / 2 - px.y * scale.value
+      clampPan() // 应用边界限制
       trackedBusId.value = null
     }
   }
@@ -266,12 +331,45 @@ function selectStop(name: string) { mapStore.selectStop(name) }
 let initializing = false
 
 onMounted(() => {
-  // 计算初始居中（适配屏幕大小显示全图）
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
-  scale.value = MIN_SCALE.value
-  panX.value = (vw - IMG_W * scale.value) / 2
-  panY.value = (vh - IMG_H * scale.value) / 2
+
+  // 计算所有站点的边界范围，以便初始显示整个校园
+  let minLng = Infinity, maxLng = -Infinity
+  let minLat = Infinity, maxLat = -Infinity
+
+  for (const station of scheduleStore.stations) {
+    minLng = Math.min(minLng, station.lng)
+    maxLng = Math.max(maxLng, station.lng)
+    minLat = Math.min(minLat, station.lat)
+    maxLat = Math.max(maxLat, station.lat)
+  }
+
+  // 计算边界中心点
+  const centerLng = (minLng + maxLng) / 2
+  const centerLat = (minLat + maxLat) / 2
+  const centerPx = wgs84ToPixel(centerLng, centerLat)
+
+  // 计算边界像素范围
+  const topLeft = wgs84ToPixel(minLng, maxLat)
+  const bottomRight = wgs84ToPixel(maxLng, minLat)
+  const boundsW = bottomRight.x - topLeft.x
+  const boundsH = bottomRight.y - topLeft.y
+
+  // 计算合适的缩放比例，留出边距（上多下少，整体放大）
+  const paddingTop = 50
+  const paddingBottom = 20
+  const paddingLeft = 40
+  const paddingRight = 40
+  const scaleX = (vw - paddingLeft - paddingRight) / boundsW
+  const scaleY = (vh - paddingTop - paddingBottom) / boundsH
+  const initialScale = Math.min(scaleX, scaleY, 0.7) // 最大0.7，更贴近
+
+  // 设置初始缩放和位置，让整个校园居中显示（上多下少）
+  scale.value = initialScale
+  panX.value = vw / 2 - centerPx.x * scale.value
+  panY.value = (vh - paddingBottom + paddingTop) / 2 - centerPx.y * scale.value
+  clampPan() // 应用边界限制
 
   // 路线可见性
   initializing = true
@@ -290,7 +388,6 @@ onUnmounted(() => {
   if (animFrameId) cancelAnimationFrame(animFrameId)
 })
 
-watch(() => mapStore.visibleRoutes, () => { if (!initializing) {} })
 </script>
 
 <template>
@@ -307,50 +404,79 @@ watch(() => mapStore.visibleRoutes, () => { if (!initializing) {} })
       style="touch-action:none">
 
       <div class="map-layer" :style="layerStyle">
-        <!-- 卫星底图 -->
+        <!-- 卫星底图（GPU 加速优化） -->
         <img :src="`${BASE_URL}data/campus-satellite.jpg`" :width="IMG_W" :height="IMG_H"
-          style="display:block;user-select:none;pointer-events:none;will-change:transform"
-          decoding="async" draggable="false">
+          style="display:block;user-select:none;pointer-events:none;will-change:transform;transform:translateZ(0);backface-visibility:hidden"
+          decoding="async" loading="lazy" draggable="false"
+          @load="mapLoading = false">
+      </div>
 
-        <!-- SVG 叠加层 -->
-        <svg :width="IMG_W" :height="IMG_H" style="position:absolute;top:0;left:0;pointer-events:none">
+      <!-- 矢量叠加层（固定大小，不随地图缩放） -->
+      <div class="vector-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;">
+        <svg style="position:absolute;top:0;left:0;width:1px;height:1px;overflow:visible;">
           <!-- 路线折线 -->
-          <polyline v-for="(line, i) in routeLines" :key="'l'+i"
-            :points="line.points" fill="none" :stroke="line.color"
-            stroke-width="3" stroke-opacity="0.6" :stroke-dasharray="line.dashed ? '8 5' : undefined"
-            stroke-linecap="round" stroke-linejoin="round" />
-
-          <!-- 站点标记 -->
-          <g v-for="(m, i) in stationMarkers" :key="'s'+i"
-            :transform="`translate(${m.x},${m.y})`" @click="selectStop(m.name)"
-            style="cursor:pointer;pointer-events:auto">
-            <template v-if="mapStore.showLabels">
-              <rect :x="-m.name.length * 3.5 - 6" y="-24" :width="m.name.length * 7 + 12" height="20"
-                rx="10" :fill="m.color" />
-              <text x="0" y="-10" text-anchor="middle" fill="#fff" font-size="11"
-                font-weight="600" style="pointer-events:none">{{ m.name }}</text>
-              <circle cx="0" cy="0" r="5" :fill="m.color" stroke="#fff" stroke-width="2"
-                style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))" />
-            </template>
-            <template v-else>
-              <circle cx="0" cy="0" r="5" :fill="m.color" stroke="#fff" stroke-width="2"
-                style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.3))" />
-            </template>
-          </g>
-
-          <!-- 用户位置 -->
-          <g v-if="userPixel" :transform="`translate(${userPixel.x},${userPixel.y})`">
-            <circle cx="0" cy="0" r="8" fill="#3B82F6" fill-opacity="0.2" stroke="none" />
-            <circle cx="0" cy="0" r="5" fill="#3B82F6" stroke="#fff" stroke-width="3" />
+          <g v-for="(line, i) in routeLines" :key="'l'+i">
+            <polyline
+              :points="transformPoints(line.points)" fill="none" :stroke="line.color"
+              :stroke-width="STROKE_WIDTH" stroke-opacity="0.7" :stroke-dasharray="line.dashed ? '10 6' : undefined"
+              stroke-linecap="round" stroke-linejoin="round" />
           </g>
         </svg>
 
-        <!-- 公交车标记 -->
-        <div v-for="b in busMarkers" :key="b.departureId"
-          class="bus-marker"
-          :style="{ left: b.px + 'px', top: b.py + 'px', transform: 'translate(-50%,-50%)' }"
-          v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
+        <!-- 站点标记（使用 CSS 定位，保持固定大小） -->
+        <div v-for="(m, i) in stationMarkers" :key="'s'+i"
+          :style="{
+            position: 'absolute',
+            left: (panX + m.x * scale) + 'px',
+            top: (panY + m.y * scale) + 'px',
+            transform: 'translate(-50%, -100%)',
+            cursor: 'pointer',
+            pointerEvents: 'auto'
+          }"
+          @click="selectStop(m.name)">
+          <template v-if="mapStore.showLabels">
+            <div :style="{
+              background: m.color,
+              borderRadius: '10px',
+              padding: '3px 8px',
+              whiteSpace: 'nowrap',
+              marginBottom: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: '1'
+            }">
+              <span style="color:white;font-size:10px;font-weight:600;font-family:'PingFang SC','Microsoft YaHei',sans-serif;">{{ m.name }}</span>
+            </div>
+          </template>
+          <div :style="{
+            width: CIRCLE_RADIUS * 2 + 'px',
+            height: CIRCLE_RADIUS * 2 + 'px',
+            borderRadius: '50%',
+            background: m.color,
+            border: '2px solid white',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+            margin: '0 auto'
+          }"></div>
+        </div>
+
+        <!-- 用户位置 -->
+        <div v-if="userPixel" :style="{
+          position: 'absolute',
+          left: (panX + userPixel.x * scale) + 'px',
+          top: (panY + userPixel.y * scale) + 'px',
+          transform: 'translate(-50%, -50%)'
+        }">
+          <div style="width:16px;height:16px;border-radius:50%;background:rgba(59,130,246,0.2);"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#3B82F6;border:3px solid white;position:absolute;top:3px;left:3px;"></div>
+        </div>
       </div>
+
+      <!-- 公交车标记 -->
+      <div v-for="b in busMarkers" :key="b.departureId"
+        class="bus-marker"
+        :style="{ left: (panX + b.px * scale) + 'px', top: (panY + b.py * scale) + 'px', transform: 'translate(-50%,-50%)' }"
+        v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
     </div>
 
     <MapLegend />

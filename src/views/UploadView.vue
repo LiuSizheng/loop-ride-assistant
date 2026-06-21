@@ -74,7 +74,7 @@ function boardAt(stopName: string) {
   const idx = routeStops.value.indexOf(stopName)
   if (idx < 0 || idx >= routeStops.value.length - 1) return // 终点站不能上车
   boardIdx.value = idx
-  uploadStore.startRecordingAt(stopName, selectedRoute.value)
+  uploadStore.startRecordingAt(stopName)
   showSuccessToast(`已上车：${stopName}`)
 }
 

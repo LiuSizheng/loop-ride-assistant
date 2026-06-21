@@ -4,9 +4,20 @@ import { useScheduleStore } from '@/stores/schedule'
 import { getDateType } from '@/utils/datetime'
 import { getDateLabel } from '@/utils/holidays'
 import { getNow } from '@/utils/time'
-import type { RouteName, DateType } from '@/types'
+import type { RouteName, DateType, Departure } from '@/types'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import BusStopTimeline from '@/components/common/BusStopTimeline.vue'
+
+interface PlanResult {
+  departure: Departure
+  boardStop: string
+  boardTime: string
+  boardMinutes: number
+  destStop: string
+  destTime: string
+  destMinutes: number
+  isBoardDeparture: boolean
+}
 
 const scheduleStore = useScheduleStore()
 
@@ -54,7 +65,7 @@ const planDate = ref(todayStr())
 const planOrigin = ref('研究生宿舍楼')
 const planDest = ref('高超楼')
 const planDeadline = ref('20:00')
-const planResults = ref<any[]>([])
+const planResults = ref<PlanResult[]>([])
 const planShowAll = ref(false)
 const planDisplayed = computed(() => planShowAll.value ? planResults.value : planResults.value.slice(0, 10))
 const planDateType = computed<DateType>(() => {
@@ -85,7 +96,7 @@ function doSearch() {
   const [dh, dm] = planDeadline.value.split(':').map(Number)
   const deadlineMin = dh * 60 + dm
   const dt = planDateType.value
-  const results: any[] = []
+  const results: PlanResult[] = []
 
   for (const r of routes) {
     const deps = scheduleStore.getDepartures(dt, r)

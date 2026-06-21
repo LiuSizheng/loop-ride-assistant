@@ -5,13 +5,19 @@ import { useScheduleStore } from '@/stores/schedule'
 import { getDateType, getSecondsSinceMidnight } from '@/utils/datetime'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import ETAIndicator from '@/components/common/ETAIndicator.vue'
+import type { Departure, ArrivalPrediction } from '@/types'
+
+interface ArrivalItem extends ArrivalPrediction {
+  departure: Departure | undefined
+  secondsUntil: number
+}
 
 const mapStore = useMapStore()
 const scheduleStore = useScheduleStore()
 const dateType = computed(() => getDateType())
 const secondsNow = computed(() => getSecondsSinceMidnight())
 
-const arrivals = computed(() => {
+const arrivals = computed<ArrivalItem[]>(() => {
   if (!mapStore.selectedStop) return []
   const preds = scheduleStore.getPredictionsForStop(
     mapStore.selectedStop,
@@ -35,8 +41,8 @@ const arrivals = computed(() => {
         secondsUntil: Math.round(delta),
       }
     })
-    .filter(Boolean)
-    .sort((a: any, b: any) => a.secondsUntil - b.secondsUntil)
+    .filter((item): item is ArrivalItem => item !== null)
+    .sort((a, b) => a.secondsUntil - b.secondsUntil)
     .slice(0, 6)
 })
 

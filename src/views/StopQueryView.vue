@@ -4,6 +4,12 @@ import { useScheduleStore } from '@/stores/schedule'
 import { getDateType, getSecondsSinceMidnight } from '@/utils/datetime'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import ETAIndicator from '@/components/common/ETAIndicator.vue'
+import type { Departure, ArrivalPrediction } from '@/types'
+
+interface ArrivalItem extends ArrivalPrediction {
+  departure: Departure | undefined
+  secondsUntil: number
+}
 
 const scheduleStore = useScheduleStore()
 const searchText = ref('')
@@ -23,7 +29,7 @@ const filteredStops = computed(() => {
 })
 
 // 当前站点的到站预测
-const arrivals = computed(() => {
+const arrivals = computed<ArrivalItem[]>(() => {
   if (!selectedStop.value) return []
   const preds = scheduleStore.getPredictionsForStop(selectedStop.value, dateType.value)
 
@@ -45,8 +51,8 @@ const arrivals = computed(() => {
         secondsUntil: Math.round(delta),
       }
     })
-    .filter(Boolean)
-    .sort((a: any, b: any) => a.secondsUntil - b.secondsUntil)
+    .filter((item): item is ArrivalItem => item !== null)
+    .sort((a, b) => a.secondsUntil - b.secondsUntil)
 })
 
 function selectStop(name: string) {

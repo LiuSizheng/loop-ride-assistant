@@ -73,7 +73,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | `stations.json` | 所有站点字典（含 name, lat, lng, serviceRoutes） |
 | `route_paths.json` | 各路线折线坐标（用于地图绘制和离开检测） |
 | `satellite-bounds.json` | 卫星底图元数据（topLeftTile, zoom, tileSize, imageWidth, imageHeight, gcj02Bounds） |
-| `campus-satellite.jpg` | 卫星底图 JPEG（5120×7424px，~6MB，ESRI 瓦片拼接） |
+| `campus-satellite.jpg` | 卫星底图 JPEG（2816×2816px，~1.5MB，ESRI 瓦片拼接） |
 
 ### 卫星底图工具
 
@@ -90,9 +90,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 MapView.vue
 ├── 图层容器 (CSS transform: translate + scale)
-│   ├── <img> 卫星底图 (JPEG, 5120×7424px, ~6MB)
-│   ├── <svg> 路线折线 (polyline, 5条路线)
-│   ├── <svg> 站点标记 (g > circle + label, 54个站点)
+│   ├── <img> 卫星底图 (JPEG, 2816×2816px, ~1.5MB)
+│   ├── <svg> 路线折线 (polyline, 4条路线)
+│   ├── <div> 站点标记 (HTML div + CSS 定位, 20个站点)
 │   ├── <div> 公交车标记 (img + 旋转 + 班次角标)
 │   └── <div> 用户位置标记 (蓝点)
 ├── MapLegend (路线图例 + 标签开关)
@@ -100,10 +100,10 @@ MapView.vue
 ```
 
 **卫星底图参数**：
-- 尺寸：5120 × 7424 px（zoom 17，20×29 瓦片拼接）
-- 锚点（GCJ-02）：北门 28.2688°N（北扩3km）、305教学楼 28.2540°S（南扩3km）、理学院 113.0424°W（西扩2km）、东门 113.0536°E（东扩2km）
-- 瓦片参数：topLeftTile {x:106683, y:54786}，zoom 17，tileSize 256
-- 压缩：JPEG quality 60，约 6MB
+- 尺寸：2816 × 2816 px（正方形，zoom 17，11×11 瓦片拼接）
+- 边距：南北 600m，东西 800m
+- 瓦片参数：topLeftTile {x:106689, y:54795}，zoom 17，tileSize 256
+- 压缩：JPEG quality 75，约 1.5MB
 - PWA 缓存上限：`maximumFileSizeToCacheInBytes: 10MB`
 
 **坐标投影（map_project.ts）**：
@@ -117,8 +117,11 @@ MapView.vue
 - 双指缩放：以双指中心为基准（不是图片左上角），通过调整 panX/panY 保持中心点固定
 - 滚轮缩放：以鼠标光标位置为中心
 - 双击缩放：以点击位置为中心
-- 动态最小缩放：`MIN_SCALE = Math.min(viewportW/IMG_W, viewportH/IMG_H, 0.15)`，手机上可缩到看全图
-- 回中按钮：地图拖丢时（图片完全离开视口）自动出现，点击恢复适配屏幕大小
+- 动态最小缩放：`MIN_SCALE = Math.max(viewportW/IMG_W, viewportH/IMG_H)`，图片至少占满屏幕
+- 最大缩放：4 倍
+- 边界限制：`clampPan()` 函数防止显示黑色区域
+- 站点和路线固定视觉大小：不随地图缩放变化
+- 回中按钮：点击恢复显示整个校园
 
 **定位功能**：使用浏览器原生 `navigator.geolocation`，**不调用任何第三方 API**。GPS 返回 WGS-84，经 `wgs84ToGcj02()` 转换后用于地图定位。
 
@@ -254,10 +257,10 @@ git checkout dev-time-sim
 ## PWA 缓存注意事项
 
 - **iOS PWA 缓存顽固**：service worker 缓存的旧版本不会自动更新，用户需要手动删除 PWA（长按图标 → 移除 App）再重新添加主屏幕
-- **satellite image 更新后必须清缓存**：因为卫星底图是单个大文件（~6MB），workbox 会缓存它，更新后需要用户清除
+- **satellite image 更新后必须清缓存**：因为卫星底图是单个大文件（~1.5MB），workbox 会缓存它，更新后需要用户清除
 - 当前 `registerType: 'autoUpdate'`，理论上新 service worker 会自动激活，但 iOS PWA 行为不一致
 - workbox `globPatterns` 包含 `jpg`/`jpeg` 以缓存卫星底图
-- `maximumFileSizeToCacheInBytes: 10MB` 以容纳 6MB 的卫星 JPEG
+- `maximumFileSizeToCacheInBytes: 10MB` 以容纳 1.5MB 的卫星 JPEG
 
 ## 实测校准建议
 

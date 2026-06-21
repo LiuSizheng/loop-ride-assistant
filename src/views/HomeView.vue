@@ -14,6 +14,37 @@ import { arrivalCountdown, departureCountdown } from '@/utils/countdown'
 import RouteBadge from '@/components/common/RouteBadge.vue'
 import ETAIndicator from '@/components/common/ETAIndicator.vue'
 import BusStopTimeline from '@/components/common/BusStopTimeline.vue'
+import type { Departure, ArrivalPrediction } from '@/types'
+
+interface StopArrivalItem {
+  departure: Departure
+  stopName?: string
+  arrivalTime?: string
+  arrivalMinutes?: number
+  secondsUntil?: number
+  etaDisplay?: string
+  status?: string
+  label?: string
+  candidateStop?: string
+  walkTime?: number
+  destStop?: string
+  departed?: boolean
+  walkSeconds?: number
+  walkLabel?: string
+  isOriginDeparture?: boolean
+  boardSec?: number
+  boardLabel?: string
+  boardStatus?: string
+  boardTime?: string
+  destArrivalTime?: string
+}
+
+interface DepartingSoonItem {
+  departure: Departure
+  secondsUntil: number
+  label: string
+  isUrgent: boolean
+}
 
 const router = useRouter()
 
@@ -101,10 +132,10 @@ function toggleBusCard(key: string) {
   else next.add(key)
   expandedCards.value = next
 }
-function busCardKey(item: any): string {
+function busCardKey(item: StopArrivalItem): string {
   return 'arrival-' + item.departure?.recordId + '-' + (item.candidateStop || '')
 }
-function nearbyCardKey(item: any): string {
+function nearbyCardKey(item: StopArrivalItem): string {
   return 'nearby-' + item.stopName + '-' + item.departure.recordId
 }
 
@@ -127,7 +158,7 @@ const stopArrivals = computed(() => {
   if (!selectedStop.value) return []
   const destStop = selectedStop.value
   const preds = scheduleStore.getPredictionsForStop(destStop, dateType.value)
-  const results: any[] = []
+  const results: StopArrivalItem[] = []
 
   const hasGps = mapStore.userLat !== null
   const WALK_SPEED = 1.3 // m/s
@@ -256,7 +287,7 @@ const stopArrivals = computed(() => {
     }
   }
 
-  results.sort((a: any, b: any) => {
+  results.sort((a, b) => {
     // 按目的地预计到站时间排序
     const aTime = a.destArrivalTime || a.arrivalTime || ''
     const bTime = b.destArrivalTime || b.arrivalTime || ''
@@ -274,14 +305,14 @@ const nearbyStopArrivals = computed(() => {
   if (selectedStop.value) return [] // 选了目的地就隐藏
   if (mapStore.userLat === null) return []
   const WALK_SPEED = 1.3
-  const candidates = findNearestStops(mapStore.userLat, mapStore.userLng, scheduleStore.stations, 3, 200)
-  const sections: any[] = []
+  const candidates = findNearestStops(mapStore.userLat!, mapStore.userLng!, scheduleStore.stations, 3, 200)
+  const sections: Array<{ stopName: string; walkLabel: string; arrivals: StopArrivalItem[] }> = []
 
   for (const c of candidates) {
     const stopName = c.station.name
     const walkSeconds = c.distance / WALK_SPEED
     const walkLabel = formatWalkTime(walkSeconds)
-    const arrivals: any[] = []
+    const arrivals: StopArrivalItem[] = []
     const preds = scheduleStore.getPredictionsForStop(stopName, dateType.value)
 
     for (const p of preds) {
@@ -306,7 +337,7 @@ const nearbyStopArrivals = computed(() => {
     }
 
     if (arrivals.length > 0) {
-      arrivals.sort((a: any, b: any) => a.secondsUntil - b.secondsUntil)
+      arrivals.sort((a, b) => a.secondsUntil! - b.secondsUntil!)
       sections.push({ stopName, walkLabel, arrivals })
     }
   }
@@ -374,7 +405,7 @@ const nearbyStopArrivals = computed(() => {
           <div class="bus-card-right">
             <div class="walk-hint">{{ item.walkLabel }}到「{{ item.stopName }}」</div>
             <div class="arrival-time">{{ item.arrivalTime }}</div>
-            <ETAIndicator :seconds-until="item.secondsUntil" type="arrival" />
+            <ETAIndicator :seconds-until="item.secondsUntil!" type="arrival" />
           </div>
           </div>
           <BusStopTimeline
@@ -392,39 +423,39 @@ const nearbyStopArrivals = computed(() => {
     <div v-if="selectedStop && scheduleStore.isDataLoaded" class="section">
       <div class="section-title">「{{ selectedStop }}」</div>
       <div v-if="stopArrivals.length === 0" class="empty-hint">当前时段暂无经过此站的车次</div>
-      <div v-for="item in displayedArrivals" :key="busCardKey((item as any))" class="bus-card" :class="{ expanded: expandedCards.has(busCardKey((item as any))) }" :style="{ borderLeft: `3px solid ${routeBorderColor((item as any).departure?.routeKey)}` }">
+      <div v-for="item in displayedArrivals" :key="busCardKey((item as any))" class="bus-card" :class="{ expanded: expandedCards.has(busCardKey((item as any))) }" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure?.routeKey)}` }">
         <div class="bus-card-main" @click="toggleBusCard(busCardKey((item as any)))">
         <div class="bus-card-left">
           <div class="route-col">
-            <RouteBadge :route="(item as any).departure?.route" :dining="(item as any).departure?.routeKey === 'HX1_DINING'" />
-            <span class="bus-shift">{{ (item as any).departure?.shiftName }}</span>
+            <RouteBadge :route="item.departure?.route" :dining="item.departure?.routeKey === 'HX1_DINING'" />
+            <span class="bus-shift">{{ item.departure?.shiftName }}</span>
           </div>
-          <span v-if="(item as any).departure?.isGaochaoDeparture" class="tags-col">
+          <span v-if="item.departure?.isGaochaoDeparture" class="tags-col">
             <span class="bus-from">系统楼发车</span>
-            <span class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
+            <span class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
           </span>
-          <span v-else class="depart-tag" :class="(item as any).departed ? 'gone' : 'wait'">{{ (item as any).departed ? '已发车' : '未发车' }}</span>
+          <span v-else class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
         </div>
-        <div class="bus-card-right" v-if="(item as any).candidateStop">
-          <div class="boarding-info">{{ (item as any).walkLabel }}到「{{ (item as any).candidateStop }}」</div>
+        <div class="bus-card-right" v-if="item.candidateStop">
+          <div class="boarding-info">{{ item.walkLabel }}到「{{ item.candidateStop }}」</div>
           <ETAIndicator
-            :seconds-until="(item as any).boardSec"
-            :type="(item as any).isOriginDeparture ? 'departure' : 'arrival'"
+            :seconds-until="item.boardSec!"
+            :type="item.isOriginDeparture ? 'departure' : 'arrival'"
           />
-          <div class="board-time">于{{ (item as any).boardTime }}{{ (item as any).isOriginDeparture ? '发车' : '到站' }}</div>
-          <div class="dest-info">预计{{ (item as any).destArrivalTime }} 到「{{ (item as any).destStop }}」</div>
+          <div class="board-time">于{{ item.boardTime }}{{ item.isOriginDeparture ? '发车' : '到站' }}</div>
+          <div class="dest-info">预计{{ item.destArrivalTime }} 到「{{ item.destStop }}」</div>
         </div>
         <div class="bus-card-right" v-else>
-          <div class="arrival-time">{{ (item as any).arrivalTime }}</div>
-          <ETAIndicator :seconds-until="(item as any).secondsUntil" type="arrival" />
+          <div class="arrival-time">{{ item.arrivalTime }}</div>
+          <ETAIndicator :seconds-until="item.secondsUntil!" type="arrival" />
         </div>
         </div>
         <BusStopTimeline
           v-if="expandedCards.has(busCardKey((item as any)))"
-          :departure-id="(item as any).departure?.recordId"
-          :route-key="(item as any).departure?.routeKey"
-          :highlight-stop="(item as any).destStop || selectedStop"
-          :highlight-origin="(item as any).candidateStop"
+          :departure-id="item.departure?.recordId"
+          :route-key="item.departure?.routeKey"
+          :highlight-stop="item.destStop || selectedStop"
+          :highlight-origin="item.candidateStop"
           @view-on-map="handleViewOnMap"
         />
       </div>
@@ -447,7 +478,7 @@ const nearbyStopArrivals = computed(() => {
             <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
             <span class="bus-shift">{{ item.departure.shiftName }}</span>
           </div>
-          <span class="bus-from" v-if="item.departure.isGaochaoDeparture">高超楼发车</span>
+          <span class="bus-from" v-if="item.departure.isGaochaoDeparture">系统楼发车</span>
         </div>
         <div class="bus-card-right">
           <div class="departure-time">{{ item.departure.departureTime }}</div>

@@ -2,7 +2,7 @@
  * 倒计时显示逻辑
  *
  * 规则：
- * - 每 15 秒刷新，秒数对齐到 15s 步进 (0/15/30/45)
+ * - 每 1 秒刷新
  * - 到站：显示 10 分钟内的车次
  * - 发车：显示 30 分钟内的车次
  */
@@ -16,7 +16,7 @@ export interface CountdownItem {
 }
 
 /**
- * 将秒数对齐到 15 秒步进（向上取整）
+ * 将秒数向上取整到整数秒
  */
 function snapTo1(seconds: number): number {
   return Math.ceil(seconds)

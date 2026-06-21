@@ -4,8 +4,8 @@
  */
 
 // 卫星底图参数（从 download_satellite.mjs 生成，固定不变）
-const TOP_LEFT_TILE_X = 106683
-const TOP_LEFT_TILE_Y = 54786
+const TOP_LEFT_TILE_X = 106688
+const TOP_LEFT_TILE_Y = 54795
 const ZOOM = 17
 const TILE_SIZE = 256
 const N = 2 ** ZOOM
@@ -44,11 +44,21 @@ export function gcj02ToWgs84(lng: number, lat: number): { lat: number; lng: numb
   }
 }
 
-// ─── GCJ-02 → 底图像素坐标 ───
+// ─── GCJ-02 → 底图像素坐标（仅用于用户 GPS 定位，GPS 已转为 GCJ-02）───
 export function gcj02ToPixel(lng: number, lat: number): { x: number; y: number } {
   const wgs = gcj02ToWgs84(lng, lat)
-  const tileX = ((wgs.lng + 180) / 360) * N
-  const tileY = ((1 - Math.log(Math.tan(wgs.lat * Math.PI / 180) + 1 / Math.cos(wgs.lat * Math.PI / 180)) / Math.PI) / 2) * N
+  return wgs84ToPixelRaw(wgs.lng, wgs.lat)
+}
+
+// ─── WGS-84 → 底图像素坐标（用于站点/路线数据，数据源为 Google Maps WGS-84）───
+export function wgs84ToPixel(lng: number, lat: number): { x: number; y: number } {
+  return wgs84ToPixelRaw(lng, lat)
+}
+
+// 底层：WGS-84 经纬度 → Web Mercator tile → 像素坐标
+function wgs84ToPixelRaw(lng: number, lat: number): { x: number; y: number } {
+  const tileX = ((lng + 180) / 360) * N
+  const tileY = ((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2) * N
   return {
     x: (tileX - TOP_LEFT_TILE_X) * TILE_SIZE,
     y: (tileY - TOP_LEFT_TILE_Y) * TILE_SIZE,

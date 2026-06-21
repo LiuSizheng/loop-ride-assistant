@@ -43,7 +43,12 @@ function computePathDistances(path: RoutePath, fromIdx: number, toIdx: number): 
       const dlat = path[i][1] - path[i - 1][1]
       dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
     }
-    // 从路径末尾绕回开头
+    // 路径末尾绕回起点，再走到 toIdx
+    {
+      const dlng = path[0][0] - path[path.length - 1][0]
+      const dlat = path[0][1] - path[path.length - 1][1]
+      dists.push(dists[dists.length - 1] + Math.sqrt(dlng * dlng + dlat * dlat))
+    }
     for (let i = 1; i <= toIdx; i++) {
       const dlng = path[i][0] - path[i - 1][0]
       const dlat = path[i][1] - path[i - 1][1]
@@ -52,6 +57,14 @@ function computePathDistances(path: RoutePath, fromIdx: number, toIdx: number): 
   }
   // fromIdx === toIdx: 返回 [0]，起点即终点
   return dists
+}
+
+/**
+ * 将 distances 数组索引映射回实际路径索引（处理环线回绕）
+ */
+function mapDistIdxToPathIdx(distIdx: number, fromIdx: number, pathLen: number): number {
+  const raw = fromIdx + distIdx
+  return raw < pathLen ? raw : raw - pathLen
 }
 
 /**
@@ -86,8 +99,8 @@ function interpolateOnPath(
   const segEnd = distances[hi]
   const segFrac = segEnd > segStart ? (targetDist - segStart) / (segEnd - segStart) : 0
 
-  const idx = fromIdx + lo
-  const nextIdx = fromIdx + hi
+  const idx = mapDistIdxToPathIdx(lo, fromIdx, path.length)
+  const nextIdx = mapDistIdxToPathIdx(hi, fromIdx, path.length)
   return {
     lng: path[idx][0] + (path[nextIdx][0] - path[idx][0]) * segFrac,
     lat: path[idx][1] + (path[nextIdx][1] - path[idx][1]) * segFrac,
@@ -103,13 +116,14 @@ export function computeActiveBusPositions(
   patterns: Map<string, RoutePattern>,
   stations: Station[],
   routePaths: Record<string, RoutePath>,
+  routeStops?: Record<string, Array<{ name: string; lng: number; lat: number }>>,
   currentDate?: Date
 ): BusPosition[] {
   const date = currentDate ?? getNow()
   const secondsSinceMidnight = getSecondsSinceMidnight(date)
   const results: BusPosition[] = []
 
-  // 站点名 → 坐标
+  // 站点名 → 坐标（fallback：统一 stations.json）
   const stationMap = new Map(stations.map((s) => [s.name, s]))
 
   // 考虑前 2 小时内发车的班次（可能还在路上）
@@ -119,7 +133,11 @@ export function computeActiveBusPositions(
     const pattern = patterns.get(dep.routeKey)
     if (!pattern || pattern.stops.length < 2) continue
 
-    const path = routePaths[dep.routeKey]
+    let path = routePaths[dep.routeKey]
+    // HX3_GAOCHAO 与 HX3_NORMAL 走同一物理环路，fallback 复用路径坐标
+    if ((!path || path.length < 2) && dep.routeKey === 'HX3_GAOCHAO') {
+      path = routePaths['HX3_NORMAL']
+    }
     if (!path || path.length < 2) continue
 
     let elapsedSeconds = secondsSinceMidnight - dep.departureMinutes * 60
@@ -129,14 +147,23 @@ export function computeActiveBusPositions(
     if (elapsedSeconds < 0) continue // 尚未发车
     if (elapsedSeconds > pattern.totalSeconds + 300) continue // 已到终点
 
+    // 构建该路线的站点坐标 Map（优先使用 routeStops 中的路线专属坐标）
+    const routeStopMap = new Map<string, { lng: number; lat: number }>()
+    const rs = routeStops?.[dep.routeKey]
+    if (rs) {
+      for (const s of rs) routeStopMap.set(s.name, { lng: s.lng, lat: s.lat })
+    }
+
     // 为每个站点找到路径中的对应索引（从上一个站点的索引之后搜索，保证单调）
     const stopPathIndices: number[] = []
     let searchFrom = 0
     for (const s of pattern.stops) {
-      const station = stationMap.get(s.currentStop)
-      if (station) {
+      // 优先用路线专属坐标，fallback 到 stations.json
+      let coord = routeStopMap.get(s.currentStop)
+      if (!coord) coord = stationMap.get(s.currentStop)
+      if (coord) {
         const start = searchFrom < path.length ? searchFrom : 0
-        const idx = findClosestPathIndex(path, station.lng, station.lat, start)
+        const idx = findClosestPathIndex(path, coord.lng, coord.lat, start)
         stopPathIndices.push(idx)
         searchFrom = idx + 1 // 下一个站点从当前之后开始搜
       } else {
