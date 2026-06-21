@@ -24,7 +24,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 站点选择器：按使用频次排序，支持搜索
 - 多起点搜索：选目的地后从最近 3 个站点搜索可乘线路，含步行时间
 - 车次卡片可展开查看完整站点时间线（BusStopTimeline）
+- 首页公告栏：提示"仅供参考、鼓励实测、自动记录不完善"
 - 首页底部有「使用反馈」问卷链接（问卷星）
+- 调试工具（时间覆写/定位覆写）默认隐藏（`showDebugTools = false`）
 
 ### 行程规划（ScheduleView）
 - Tab 1：输入出发站、到达站、到达期限，查询可乘车次
@@ -79,6 +81,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|
 | `scripts/download_satellite.mjs` | 从 ESRI 下载卫星瓦片并拼接（锚点：北门北3km + 305教学楼南3km + 理学院西2km + 东门东2km） |
 | `src/utils/map_project.ts` | GCJ-02 → WGS-84 → 底图像素坐标投影（用于 SVG 叠加层定位） |
+
+### 静态卫星地图架构
+
+**替代高德 API 的原因**：高德地图 JS API 按调用次数收费，校园范围固定不需要动态瓦片，改用 ESRI World Imagery 免费瓦片拼接静态图，实现零 API 调用。
+
+**架构**：
+```
+MapView.vue
+├── 图层容器 (CSS transform: translate + scale)
+│   ├── <img> 卫星底图 (JPEG, 5120×7424px, ~6MB)
+│   ├── <svg> 路线折线 (polyline, 5条路线)
+│   ├── <svg> 站点标记 (g > circle + label, 54个站点)
+│   ├── <div> 公交车标记 (img + 旋转 + 班次角标)
+│   └── <div> 用户位置标记 (蓝点)
+├── MapLegend (路线图例 + 标签开关)
+└── StopInfoPanel (站点详情面板)
+```
+
+**卫星底图参数**：
+- 尺寸：5120 × 7424 px（zoom 17，20×29 瓦片拼接）
+- 锚点（GCJ-02）：北门 28.2688°N（北扩3km）、305教学楼 28.2540°S（南扩3km）、理学院 113.0424°W（西扩2km）、东门 113.0536°E（东扩2km）
+- 瓦片参数：topLeftTile {x:106683, y:54786}，zoom 17，tileSize 256
+- 压缩：JPEG quality 60，约 6MB
+- PWA 缓存上限：`maximumFileSizeToCacheInBytes: 10MB`
+
+**坐标投影（map_project.ts）**：
+1. GCJ-02 → WGS-84（反转偏移算法）
+2. WGS-84 → Web Mercator 瓦片坐标（zoom 17）
+3. 减去图片左上角瓦片偏移 → 底图像素坐标
+- 导出：`gcj02ToPixel(lng, lat)` 和 `gcj02ToWgs84(lng, lat)`
+
+**交互行为**：
+- 拖拽：pointer events 实现单指拖拽
+- 双指缩放：以双指中心为基准（不是图片左上角），通过调整 panX/panY 保持中心点固定
+- 滚轮缩放：以鼠标光标位置为中心
+- 双击缩放：以点击位置为中心
+- 动态最小缩放：`MIN_SCALE = Math.min(viewportW/IMG_W, viewportH/IMG_H, 0.15)`，手机上可缩到看全图
+- 回中按钮：地图拖丢时（图片完全离开视口）自动出现，点击恢复适配屏幕大小
+
+**定位功能**：使用浏览器原生 `navigator.geolocation`，**不调用任何第三方 API**。GPS 返回 WGS-84，经 `wgs84ToGcj02()` 转换后用于地图定位。
+
+**已删除的文件**：
+- `src/utils/amap.ts` — 高德 SDK 加载器（已无引用）
 
 ### Excel 中关键工作表
 
@@ -165,6 +210,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 4. 按预计到站时间排序，返回最近若干班车
 5. 注意：环线1路周末/节假日过滤；就餐专线仅展示就餐专线站点
 
+## 已过班车移除窗口
+
+- 已通过/已发车的班次在列表中保留 **5 分钟**（`secondsAway < -300`）后移除
+- 涉及文件：`src/composables/useNextBus.ts`、`src/utils/countdown.ts`、`src/views/HomeView.vue`
+- 之前为 1 分钟（-60），改为 5 分钟以避免用户看到班车突然消失
+
 ## 自动记录功能
 
 ### 到站检测
@@ -199,6 +250,14 @@ git checkout dev-time-sim
 ```
 
 注意：`npm run build` 只输出到 `dist/`，GitHub Pages 读取的是 `docs/`，必须用 `npm run deploy`。
+
+## PWA 缓存注意事项
+
+- **iOS PWA 缓存顽固**：service worker 缓存的旧版本不会自动更新，用户需要手动删除 PWA（长按图标 → 移除 App）再重新添加主屏幕
+- **satellite image 更新后必须清缓存**：因为卫星底图是单个大文件（~6MB），workbox 会缓存它，更新后需要用户清除
+- 当前 `registerType: 'autoUpdate'`，理论上新 service worker 会自动激活，但 iOS PWA 行为不一致
+- workbox `globPatterns` 包含 `jpg`/`jpeg` 以缓存卫星底图
+- `maximumFileSizeToCacheInBytes: 10MB` 以容纳 6MB 的卫星 JPEG
 
 ## 实测校准建议
 
