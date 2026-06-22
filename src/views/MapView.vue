@@ -252,9 +252,6 @@ const routeLines = computed(() => {
   return lines
 })
 
-// 固定视觉大小的缩放补偿
-const invScale = computed(() => 1 / scale.value)
-
 // ---- 站点标记 ----
 interface StationMarker { x: number; y: number; name: string; color: string; rk: string }
 
@@ -415,79 +412,54 @@ onUnmounted(() => {
           style="display:block;user-select:none;pointer-events:none;will-change:transform;transform:translateZ(0);backface-visibility:hidden"
           decoding="async" loading="lazy" draggable="false">
 
-        <!-- SVG 路线折线（与底图共用 transform，消除不同浏览器渲染偏差） -->
+        <!-- SVG 路线 + 标记全部在 map-layer 内，与卫星图共用 CSS transform -->
         <svg style="position:absolute;top:0;left:0;width:1px;height:1px;overflow:visible;pointer-events:none;">
           <g v-for="(line, i) in routeLines" :key="'l'+i">
             <polyline
               :points="line.points" fill="none" :stroke="line.color"
-              :stroke-width="STROKE_WIDTH" stroke-opacity="0.7"
+              stroke-width="3" stroke-opacity="0.7"
               :stroke-dasharray="line.dashed ? '10 6' : undefined"
               stroke-linecap="round" stroke-linejoin="round"
               vector-effect="non-scaling-stroke" />
           </g>
         </svg>
 
-        <!-- 站点标记（与底图共用 transform） -->
-        <div v-for="(m, i) in stationMarkers" :key="'s'+i"
+        <div v-for="(m, i) in stationMarkers" :key="'s'+i" class="map-overlay-item"
           :style="{
-            position: 'absolute',
-            left: m.x + 'px',
-            top: m.y + 'px',
-            transform: `translate(-50%,-100%) scale(${invScale})`,
+            position: 'absolute', left: m.x + 'px', top: m.y + 'px',
+            transform: `translate(-50%,-100%) scale(${1/scale})`,
             transformOrigin: 'bottom center',
-            cursor: 'pointer',
-            pointerEvents: 'auto'
-          }"
-          @click="selectStop(m.name)">
+          }" @click.stop="selectStop(m.name)">
           <template v-if="mapStore.showLabels">
             <div :style="{
-              background: m.color,
-              borderRadius: '10px',
-              padding: '3px 8px',
-              whiteSpace: 'nowrap',
-              marginBottom: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              lineHeight: '1'
+              background: m.color, borderRadius: '10px', padding: '3px 8px',
+              whiteSpace: 'nowrap', marginBottom: '4px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1'
             }">
               <span style="color:white;font-size:10px;font-weight:600;font-family:'PingFang SC','Microsoft YaHei',sans-serif;">{{ m.name }}</span>
             </div>
           </template>
           <div :style="{
-            width: CIRCLE_RADIUS * 2 + 'px',
-            height: CIRCLE_RADIUS * 2 + 'px',
-            borderRadius: '50%',
-            background: m.color,
-            border: '2px solid white',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-            margin: '0 auto'
+            width: '8px', height: '8px', borderRadius: '50%',
+            background: m.color, border: '2px solid white',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.3)', margin: '0 auto'
           }"></div>
         </div>
 
-        <!-- 用户位置（与底图共用 transform） -->
         <div v-if="userPixel" :style="{
-          position: 'absolute',
-          left: userPixel.x + 'px',
-          top: userPixel.y + 'px',
-          transform: `translate(-50%,-50%) scale(${invScale})`,
-          transformOrigin: 'center',
-          pointerEvents: 'none'
+          position: 'absolute', left: userPixel.x + 'px', top: userPixel.y + 'px',
+          transform: `translate(-50%,-50%) scale(${1/scale})`,
+          transformOrigin: 'center', pointerEvents: 'none'
         }">
           <div style="width:16px;height:16px;border-radius:50%;background:rgba(59,130,246,0.2);"></div>
           <div style="width:10px;height:10px;border-radius:50%;background:#3B82F6;border:3px solid white;position:absolute;top:3px;left:3px;"></div>
         </div>
 
-        <!-- 公交车标记（与底图共用 transform） -->
-        <div v-for="b in busMarkers" :key="b.departureId"
-          class="bus-marker"
+        <div v-for="b in busMarkers" :key="b.departureId" class="bus-marker"
           :style="{
-            position: 'absolute',
-            left: b.px + 'px',
-            top: b.py + 'px',
-            transform: `translate(-50%,-50%) scale(${invScale})`,
+            position: 'absolute', left: b.px + 'px', top: b.py + 'px',
+            transform: `translate(-50%,-50%) scale(${1/scale})`,
             transformOrigin: 'center',
-            zIndex: 10
           }"
           v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
       </div>
