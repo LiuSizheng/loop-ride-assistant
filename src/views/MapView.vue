@@ -418,8 +418,7 @@ onUnmounted(() => {
         <!-- 卫星底图（GPU 加速优化） -->
         <img :src="`${BASE_URL}data/campus-satellite.jpg`" :width="IMG_W" :height="IMG_H"
           style="display:block;user-select:none;pointer-events:none;will-change:transform;transform:translateZ(0);backface-visibility:hidden"
-          decoding="async" loading="lazy" draggable="false"
-          @load="mapLoading = false">
+          decoding="async" loading="lazy" draggable="false">
       </div>
 
       <!-- 矢量叠加层（固定大小，不随地图缩放） -->

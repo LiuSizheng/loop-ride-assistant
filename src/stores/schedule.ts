@@ -38,13 +38,14 @@ export const useScheduleStore = defineStore('schedule', () => {
 
     try {
       const base = import.meta.env.BASE_URL
-      const v = Date.now() // 防止缓存
+      // 开发模式用时间戳防缓存，生产环境依赖 PWA service worker 管理缓存
+      const cacheBust = import.meta.env.DEV ? `?v=${Date.now()}` : ''
 
       const [depsRes, rpRes, stRes, predRes] = await Promise.all([
-        fetch(`${base}data/departures.json?v=${v}`),
-        fetch(`${base}data/route_params.json?v=${v}`),
-        fetch(`${base}data/stations.json?v=${v}`),
-        fetch(`${base}data/arrival_predictions.json?v=${v}`),
+        fetch(`${base}data/departures.json${cacheBust}`),
+        fetch(`${base}data/route_params.json${cacheBust}`),
+        fetch(`${base}data/stations.json${cacheBust}`),
+        fetch(`${base}data/arrival_predictions.json${cacheBust}`),
       ])
 
       if (!depsRes.ok || !rpRes.ok || !stRes.ok || !predRes.ok) {
@@ -58,7 +59,7 @@ export const useScheduleStore = defineStore('schedule', () => {
 
       // Load route paths (optional)
       try {
-        const rpRes2 = await fetch(`${base}data/route_paths.json?v=${v}`)
+        const rpRes2 = await fetch(`${base}data/route_paths.json${cacheBust}`)
         if (rpRes2.ok) {
           routePaths.value = await rpRes2.json()
         }
@@ -68,7 +69,7 @@ export const useScheduleStore = defineStore('schedule', () => {
 
       // Load route stops (per-route station positions)
       try {
-        const rsRes = await fetch(`${base}data/route_stops.json?v=${v}`)
+        const rsRes = await fetch(`${base}data/route_stops.json${cacheBust}`)
         if (rsRes.ok) {
           routeStops.value = await rsRes.json()
         }
