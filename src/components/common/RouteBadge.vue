@@ -30,7 +30,7 @@ defineProps<{
   white-space: nowrap;
 }
 .route-hx1 { background: var(--color-hx1); }
-.route-hx1-dining { background: var(--color-hx1-dining); color: #7C2D12; }
+.route-hx1-dining { background: var(--color-hx1-dining); }
 .route-hx2 { background: var(--color-hx2); }
 .route-hx3 { background: var(--color-hx3); }
 </style>
