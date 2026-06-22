@@ -417,7 +417,7 @@ onUnmounted(() => {
           <g v-for="(line, i) in routeLines" :key="'l'+i">
             <polyline
               :points="line.points" fill="none" :stroke="line.color"
-              stroke-width="4.5" stroke-opacity="0.7"
+              stroke-width="6" stroke-opacity="0.7"
               :stroke-dasharray="line.dashed ? '10 6' : undefined"
               stroke-linecap="round" stroke-linejoin="round"
               vector-effect="non-scaling-stroke" />
