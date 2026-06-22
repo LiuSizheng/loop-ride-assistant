@@ -252,13 +252,8 @@ const routeLines = computed(() => {
   return lines
 })
 
-// 转换路线点坐标到屏幕位置
-function transformPoints(pointsStr: string): string {
-  return pointsStr.split(' ').map(p => {
-    const [x, y] = p.split(',').map(Number)
-    return `${panX.value + x * scale.value},${panY.value + y * scale.value}`
-  }).join(' ')
-}
+// 固定视觉大小的缩放补偿
+const invScale = computed(() => 1 / scale.value)
 
 // ---- 站点标记 ----
 interface StationMarker { x: number; y: number; name: string; color: string; rk: string }
@@ -419,27 +414,27 @@ onUnmounted(() => {
         <img :src="`${BASE_URL}data/campus-satellite.jpg`" :width="IMG_W" :height="IMG_H"
           style="display:block;user-select:none;pointer-events:none;will-change:transform;transform:translateZ(0);backface-visibility:hidden"
           decoding="async" loading="lazy" draggable="false">
-      </div>
 
-      <!-- 矢量叠加层（固定大小，不随地图缩放） -->
-      <div class="vector-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;">
-        <svg style="position:absolute;top:0;left:0;width:1px;height:1px;overflow:visible;">
-          <!-- 路线折线 -->
+        <!-- SVG 路线折线（与底图共用 transform，消除不同浏览器渲染偏差） -->
+        <svg style="position:absolute;top:0;left:0;width:1px;height:1px;overflow:visible;pointer-events:none;">
           <g v-for="(line, i) in routeLines" :key="'l'+i">
             <polyline
-              :points="transformPoints(line.points)" fill="none" :stroke="line.color"
-              :stroke-width="STROKE_WIDTH" stroke-opacity="0.7" :stroke-dasharray="line.dashed ? '10 6' : undefined"
-              stroke-linecap="round" stroke-linejoin="round" />
+              :points="line.points" fill="none" :stroke="line.color"
+              :stroke-width="STROKE_WIDTH" stroke-opacity="0.7"
+              :stroke-dasharray="line.dashed ? '10 6' : undefined"
+              stroke-linecap="round" stroke-linejoin="round"
+              vector-effect="non-scaling-stroke" />
           </g>
         </svg>
 
-        <!-- 站点标记（使用 CSS 定位，保持固定大小） -->
+        <!-- 站点标记（与底图共用 transform） -->
         <div v-for="(m, i) in stationMarkers" :key="'s'+i"
           :style="{
             position: 'absolute',
-            left: (panX + m.x * scale) + 'px',
-            top: (panY + m.y * scale) + 'px',
-            transform: 'translate(-50%, -100%)',
+            left: m.x + 'px',
+            top: m.y + 'px',
+            transform: `translate(-50%,-100%) scale(${invScale})`,
+            transformOrigin: 'bottom center',
             cursor: 'pointer',
             pointerEvents: 'auto'
           }"
@@ -470,24 +465,32 @@ onUnmounted(() => {
           }"></div>
         </div>
 
-        <!-- 用户位置 -->
+        <!-- 用户位置（与底图共用 transform） -->
         <div v-if="userPixel" :style="{
           position: 'absolute',
-          left: (panX + userPixel.x * scale) + 'px',
-          top: (panY + userPixel.y * scale) + 'px',
-          transform: 'translate(-50%, -50%)'
+          left: userPixel.x + 'px',
+          top: userPixel.y + 'px',
+          transform: `translate(-50%,-50%) scale(${invScale})`,
+          transformOrigin: 'center',
+          pointerEvents: 'none'
         }">
           <div style="width:16px;height:16px;border-radius:50%;background:rgba(59,130,246,0.2);"></div>
           <div style="width:10px;height:10px;border-radius:50%;background:#3B82F6;border:3px solid white;position:absolute;top:3px;left:3px;"></div>
         </div>
-      </div>
 
-      <!-- 公交车标记 -->
-      <div v-for="b in busMarkers" :key="b.departureId"
-        class="bus-marker"
-        :style="{ left: (panX + b.px * scale) + 'px', top: (panY + b.py * scale) + 'px', transform: 'translate(-50%,-50%)' }"
-        v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
-    </div>
+        <!-- 公交车标记（与底图共用 transform） -->
+        <div v-for="b in busMarkers" :key="b.departureId"
+          class="bus-marker"
+          :style="{
+            position: 'absolute',
+            left: b.px + 'px',
+            top: b.py + 'px',
+            transform: `translate(-50%,-50%) scale(${invScale})`,
+            transformOrigin: 'center',
+            zIndex: 10
+          }"
+          v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
+      </div>
 
     <MapLegend />
     <div class="map-controls">
@@ -499,6 +502,7 @@ onUnmounted(() => {
       </div>
     </div>
     <StopInfoPanel />
+  </div>
   </div>
 </template>
 
@@ -517,7 +521,7 @@ onUnmounted(() => {
   will-change: transform;
 }
 .bus-marker {
-  position: absolute; z-index: 10; pointer-events: none;
+  pointer-events: none;
 }
 .map-loading {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
