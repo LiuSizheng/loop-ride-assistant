@@ -63,7 +63,7 @@ function todayStr(): string {
 }
 const planDate = ref(todayStr())
 const planOrigin = ref('研究生宿舍楼')
-const planDest = ref('高超楼')
+const planDest = ref('系统楼')
 const planDeadline = ref('20:00')
 const planResults = ref<PlanResult[]>([])
 const planShowAll = ref(false)
