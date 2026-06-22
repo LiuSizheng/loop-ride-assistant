@@ -413,7 +413,7 @@ onUnmounted(() => {
           decoding="async" loading="lazy" draggable="false">
 
         <!-- SVG 路线 + 标记全部在 map-layer 内，与卫星图共用 CSS transform -->
-        <svg style="position:absolute;top:0;left:0;width:1px;height:1px;overflow:visible;pointer-events:none;">
+        <svg :style="{ position:'absolute', top:0, left:0, width:IMG_W+'px', height:IMG_H+'px', overflow:'visible', pointerEvents:'none' }">
           <g v-for="(line, i) in routeLines" :key="'l'+i">
             <polyline
               :points="line.points" fill="none" :stroke="line.color"
