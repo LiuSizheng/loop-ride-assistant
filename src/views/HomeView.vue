@@ -68,8 +68,12 @@ const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMi
 
 // 站点点击频次（仅用于本地持久化，排序在 onMounted 时确定）
 const clickFreq = ref<Record<string, number>>({})
-// 站点排序只在页面加载时刷新一次
-const sortedStops = ref<string[]>([])
+// 站点按点击频次排序（响应 stations 数据加载）
+const sortedStops = computed(() => {
+  const stops = [...scheduleStore.stations.map(s => s.name)]
+  stops.sort((a, b) => (clickFreq.value[b] || 0) - (clickFreq.value[a] || 0))
+  return stops
+})
 // 是否由用户手动点选过站点（手动点选后不自动覆盖）
 const userManuallySelected = ref(false)
 
@@ -77,10 +81,6 @@ let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   try { clickFreq.value = JSON.parse(localStorage.getItem('stop_click_freq') || '{}') } catch { clickFreq.value = {} }
-  // 排序只在初始化时执行一次
-  const stops = [...scheduleStore.stations.map(s => s.name)]
-  stops.sort((a, b) => (clickFreq.value[b] || 0) - (clickFreq.value[a] || 0))
-  sortedStops.value = stops
   refreshTimer = setInterval(() => { refresh(); nowTick.value++ }, 1000)
 })
 

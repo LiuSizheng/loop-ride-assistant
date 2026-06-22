@@ -330,7 +330,9 @@ function selectStop(name: string) { mapStore.selectStop(name) }
 // ---- 初始化 ----
 let initializing = false
 
-onMounted(() => {
+function initMapView() {
+  if (scheduleStore.stations.length === 0) return // 数据未到，等 watch 触发
+
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
 
@@ -382,6 +384,15 @@ onMounted(() => {
   if (q.bus) trackedBusId.value = q.bus as string
 
   mapLoading.value = false
+}
+
+onMounted(() => {
+  initMapView()
+})
+
+// 数据异步加载：首次进入时 stations 可能为空，等数据到齐重新初始化
+watch(() => scheduleStore.isDataLoaded, (loaded) => {
+  if (loaded) initMapView()
 })
 
 onUnmounted(() => {
