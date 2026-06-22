@@ -4,7 +4,7 @@
     "route": "环线1路",
     "patternName": "环线1路普通路线（研究生宿舍楼发车）",
     "departureStation": "研究生宿舍楼",
-    "totalSeconds": 770,
+    "totalSeconds": 814,
     "stopCount": 13,
     "stops": [
       {
@@ -30,8 +30,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 70,
         "manualSegmentSeconds": 70,
-        "finalSegmentSeconds": 70,
-        "cumulativeSeconds": 70,
+        "finalSegmentSeconds": 75,
+        "cumulativeSeconds": 75,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -44,8 +44,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 68,
         "manualSegmentSeconds": 68,
-        "finalSegmentSeconds": 68,
-        "cumulativeSeconds": 138,
+        "finalSegmentSeconds": 73,
+        "cumulativeSeconds": 148,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -58,8 +58,8 @@
         "distanceKm": 0.25,
         "baseSegmentSeconds": 46,
         "manualSegmentSeconds": 46,
-        "finalSegmentSeconds": 46,
-        "cumulativeSeconds": 184,
+        "finalSegmentSeconds": 47,
+        "cumulativeSeconds": 195,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -72,8 +72,8 @@
         "distanceKm": 0.4,
         "baseSegmentSeconds": 70,
         "manualSegmentSeconds": 70,
-        "finalSegmentSeconds": 70,
-        "cumulativeSeconds": 254,
+        "finalSegmentSeconds": 75,
+        "cumulativeSeconds": 270,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -86,8 +86,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 37,
         "manualSegmentSeconds": 37,
-        "finalSegmentSeconds": 37,
-        "cumulativeSeconds": 291,
+        "finalSegmentSeconds": 42,
+        "cumulativeSeconds": 312,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -100,8 +100,8 @@
         "distanceKm": 0.55,
         "baseSegmentSeconds": 55,
         "manualSegmentSeconds": 55,
-        "finalSegmentSeconds": 55,
-        "cumulativeSeconds": 346,
+        "finalSegmentSeconds": 60,
+        "cumulativeSeconds": 372,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -114,8 +114,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 60,
         "manualSegmentSeconds": 60,
-        "finalSegmentSeconds": 60,
-        "cumulativeSeconds": 406,
+        "finalSegmentSeconds": 65,
+        "cumulativeSeconds": 437,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -128,8 +128,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 30,
         "manualSegmentSeconds": 30,
-        "finalSegmentSeconds": 30,
-        "cumulativeSeconds": 436,
+        "finalSegmentSeconds": 32,
+        "cumulativeSeconds": 469,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -142,8 +142,8 @@
         "distanceKm": 1,
         "baseSegmentSeconds": 176,
         "manualSegmentSeconds": 176,
-        "finalSegmentSeconds": 176,
-        "cumulativeSeconds": 612,
+        "finalSegmentSeconds": 158,
+        "cumulativeSeconds": 627,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -156,8 +156,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 48,
         "manualSegmentSeconds": 48,
-        "finalSegmentSeconds": 48,
-        "cumulativeSeconds": 660,
+        "finalSegmentSeconds": 66,
+        "cumulativeSeconds": 693,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -170,8 +170,8 @@
         "distanceKm": 0.4,
         "baseSegmentSeconds": 45,
         "manualSegmentSeconds": 45,
-        "finalSegmentSeconds": 45,
-        "cumulativeSeconds": 705,
+        "finalSegmentSeconds": 63,
+        "cumulativeSeconds": 756,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -184,8 +184,8 @@
         "distanceKm": 0.55,
         "baseSegmentSeconds": 65,
         "manualSegmentSeconds": 65,
-        "finalSegmentSeconds": 65,
-        "cumulativeSeconds": 770,
+        "finalSegmentSeconds": 58,
+        "cumulativeSeconds": 814,
         "isDepartureStop": false,
         "isReturnStop": true
       }
@@ -196,7 +196,7 @@
     "route": "环线1路",
     "patternName": "环线1路就餐专线（系统楼发车）",
     "departureStation": "系统楼",
-    "totalSeconds": 749,
+    "totalSeconds": 853,
     "stopCount": 9,
     "stops": [
       {
@@ -222,8 +222,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 30,
         "manualSegmentSeconds": 30,
-        "finalSegmentSeconds": 30,
-        "cumulativeSeconds": 30,
+        "finalSegmentSeconds": 45,
+        "cumulativeSeconds": 45,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -236,8 +236,8 @@
         "distanceKm": 1,
         "baseSegmentSeconds": 176,
         "manualSegmentSeconds": 176,
-        "finalSegmentSeconds": 176,
-        "cumulativeSeconds": 206,
+        "finalSegmentSeconds": 232,
+        "cumulativeSeconds": 277,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -251,7 +251,7 @@
         "baseSegmentSeconds": 174,
         "manualSegmentSeconds": 174,
         "finalSegmentSeconds": 174,
-        "cumulativeSeconds": 380,
+        "cumulativeSeconds": 451,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -265,7 +265,7 @@
         "baseSegmentSeconds": 70,
         "manualSegmentSeconds": 70,
         "finalSegmentSeconds": 70,
-        "cumulativeSeconds": 450,
+        "cumulativeSeconds": 521,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -278,8 +278,8 @@
         "distanceKm": 0.45,
         "baseSegmentSeconds": 45,
         "manualSegmentSeconds": 45,
-        "finalSegmentSeconds": 45,
-        "cumulativeSeconds": 495,
+        "finalSegmentSeconds": 63,
+        "cumulativeSeconds": 584,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -292,8 +292,8 @@
         "distanceKm": 0.45,
         "baseSegmentSeconds": 48,
         "manualSegmentSeconds": 48,
-        "finalSegmentSeconds": 48,
-        "cumulativeSeconds": 543,
+        "finalSegmentSeconds": 66,
+        "cumulativeSeconds": 650,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -306,8 +306,8 @@
         "distanceKm": 1,
         "baseSegmentSeconds": 176,
         "manualSegmentSeconds": 176,
-        "finalSegmentSeconds": 176,
-        "cumulativeSeconds": 719,
+        "finalSegmentSeconds": 158,
+        "cumulativeSeconds": 808,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -320,8 +320,8 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 30,
         "manualSegmentSeconds": 30,
-        "finalSegmentSeconds": 30,
-        "cumulativeSeconds": 749,
+        "finalSegmentSeconds": 45,
+        "cumulativeSeconds": 853,
         "isDepartureStop": false,
         "isReturnStop": true
       }
@@ -332,7 +332,7 @@
     "route": "环线2路",
     "patternName": "环线2路普通路线（研究生宿舍楼发车）",
     "departureStation": "研究生宿舍楼",
-    "totalSeconds": 509,
+    "totalSeconds": 586,
     "stopCount": 10,
     "stops": [
       {
@@ -358,8 +358,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 85,
         "manualSegmentSeconds": 85,
-        "finalSegmentSeconds": 85,
-        "cumulativeSeconds": 85,
+        "finalSegmentSeconds": 76,
+        "cumulativeSeconds": 76,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -373,7 +373,7 @@
         "baseSegmentSeconds": 54,
         "manualSegmentSeconds": 54,
         "finalSegmentSeconds": 54,
-        "cumulativeSeconds": 139,
+        "cumulativeSeconds": 130,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -386,8 +386,8 @@
         "distanceKm": 0.25,
         "baseSegmentSeconds": 68,
         "manualSegmentSeconds": 68,
-        "finalSegmentSeconds": 68,
-        "cumulativeSeconds": 207,
+        "finalSegmentSeconds": 73,
+        "cumulativeSeconds": 203,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -400,8 +400,8 @@
         "distanceKm": 0.5,
         "baseSegmentSeconds": 48,
         "manualSegmentSeconds": 48,
-        "finalSegmentSeconds": 48,
-        "cumulativeSeconds": 255,
+        "finalSegmentSeconds": 57,
+        "cumulativeSeconds": 260,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -414,8 +414,8 @@
         "distanceKm": 0.25,
         "baseSegmentSeconds": 48,
         "manualSegmentSeconds": 48,
-        "finalSegmentSeconds": 48,
-        "cumulativeSeconds": 303,
+        "finalSegmentSeconds": 61,
+        "cumulativeSeconds": 321,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -428,8 +428,8 @@
         "distanceKm": 0.55,
         "baseSegmentSeconds": 48,
         "manualSegmentSeconds": 48,
-        "finalSegmentSeconds": 48,
-        "cumulativeSeconds": 351,
+        "finalSegmentSeconds": 58,
+        "cumulativeSeconds": 379,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -442,8 +442,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 48,
         "manualSegmentSeconds": 48,
-        "finalSegmentSeconds": 48,
-        "cumulativeSeconds": 399,
+        "finalSegmentSeconds": 66,
+        "cumulativeSeconds": 445,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -456,8 +456,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 45,
         "manualSegmentSeconds": 45,
-        "finalSegmentSeconds": 45,
-        "cumulativeSeconds": 444,
+        "finalSegmentSeconds": 63,
+        "cumulativeSeconds": 508,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -470,8 +470,8 @@
         "distanceKm": 0.45,
         "baseSegmentSeconds": 65,
         "manualSegmentSeconds": 65,
-        "finalSegmentSeconds": 65,
-        "cumulativeSeconds": 509,
+        "finalSegmentSeconds": 78,
+        "cumulativeSeconds": 586,
         "isDepartureStop": false,
         "isReturnStop": true
       }
@@ -482,7 +482,7 @@
     "route": "环线3路",
     "patternName": "环线3路普通路线（研究生宿舍楼发车）",
     "departureStation": "研究生宿舍楼",
-    "totalSeconds": 900,
+    "totalSeconds": 919,
     "stopCount": 13,
     "stops": [
       {
@@ -508,8 +508,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 85,
         "manualSegmentSeconds": 85,
-        "finalSegmentSeconds": 85,
-        "cumulativeSeconds": 85,
+        "finalSegmentSeconds": 76,
+        "cumulativeSeconds": 76,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -522,8 +522,8 @@
         "distanceKm": 0.55,
         "baseSegmentSeconds": 54,
         "manualSegmentSeconds": 54,
-        "finalSegmentSeconds": 54,
-        "cumulativeSeconds": 139,
+        "finalSegmentSeconds": 50,
+        "cumulativeSeconds": 126,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -536,8 +536,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 46,
         "manualSegmentSeconds": 46,
-        "finalSegmentSeconds": 46,
-        "cumulativeSeconds": 185,
+        "finalSegmentSeconds": 57,
+        "cumulativeSeconds": 183,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -550,8 +550,8 @@
         "distanceKm": 0.45,
         "baseSegmentSeconds": 35,
         "manualSegmentSeconds": 35,
-        "finalSegmentSeconds": 35,
-        "cumulativeSeconds": 220,
+        "finalSegmentSeconds": 31,
+        "cumulativeSeconds": 214,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -564,8 +564,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 51,
         "manualSegmentSeconds": 51,
-        "finalSegmentSeconds": 51,
-        "cumulativeSeconds": 271,
+        "finalSegmentSeconds": 47,
+        "cumulativeSeconds": 261,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -578,8 +578,8 @@
         "distanceKm": 0.55,
         "baseSegmentSeconds": 117,
         "manualSegmentSeconds": 117,
-        "finalSegmentSeconds": 117,
-        "cumulativeSeconds": 388,
+        "finalSegmentSeconds": 105,
+        "cumulativeSeconds": 366,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -592,8 +592,8 @@
         "distanceKm": 0.2,
         "baseSegmentSeconds": 20,
         "manualSegmentSeconds": 20,
-        "finalSegmentSeconds": 20,
-        "cumulativeSeconds": 408,
+        "finalSegmentSeconds": 28,
+        "cumulativeSeconds": 394,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -606,7 +606,7 @@
         "distanceKm": 0.35,
         "baseSegmentSeconds": 30,
         "manualSegmentSeconds": 30,
-        "finalSegmentSeconds": 30,
+        "finalSegmentSeconds": 44,
         "cumulativeSeconds": 438,
         "isDepartureStop": false,
         "isReturnStop": false
@@ -620,8 +620,8 @@
         "distanceKm": 1,
         "baseSegmentSeconds": 176,
         "manualSegmentSeconds": 176,
-        "finalSegmentSeconds": 176,
-        "cumulativeSeconds": 614,
+        "finalSegmentSeconds": 181,
+        "cumulativeSeconds": 619,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -634,8 +634,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 151,
         "manualSegmentSeconds": 151,
-        "finalSegmentSeconds": 151,
-        "cumulativeSeconds": 765,
+        "finalSegmentSeconds": 152,
+        "cumulativeSeconds": 771,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -649,7 +649,7 @@
         "baseSegmentSeconds": 70,
         "manualSegmentSeconds": 70,
         "finalSegmentSeconds": 70,
-        "cumulativeSeconds": 835,
+        "cumulativeSeconds": 841,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -662,8 +662,8 @@
         "distanceKm": 0.55,
         "baseSegmentSeconds": 65,
         "manualSegmentSeconds": 65,
-        "finalSegmentSeconds": 65,
-        "cumulativeSeconds": 900,
+        "finalSegmentSeconds": 78,
+        "cumulativeSeconds": 919,
         "isDepartureStop": false,
         "isReturnStop": true
       }
@@ -674,7 +674,7 @@
     "route": "环线3路",
     "patternName": "环线3路系统楼发车路线",
     "departureStation": "系统楼",
-    "totalSeconds": 900,
+    "totalSeconds": 919,
     "stopCount": 13,
     "stops": [
       {
@@ -700,8 +700,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 30,
         "manualSegmentSeconds": 30,
-        "finalSegmentSeconds": 30,
-        "cumulativeSeconds": 30,
+        "finalSegmentSeconds": 44,
+        "cumulativeSeconds": 44,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -714,8 +714,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 176,
         "manualSegmentSeconds": 176,
-        "finalSegmentSeconds": 176,
-        "cumulativeSeconds": 206,
+        "finalSegmentSeconds": 181,
+        "cumulativeSeconds": 225,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -728,8 +728,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 151,
         "manualSegmentSeconds": 151,
-        "finalSegmentSeconds": 151,
-        "cumulativeSeconds": 357,
+        "finalSegmentSeconds": 152,
+        "cumulativeSeconds": 377,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -743,7 +743,7 @@
         "baseSegmentSeconds": 70,
         "manualSegmentSeconds": 70,
         "finalSegmentSeconds": 70,
-        "cumulativeSeconds": 427,
+        "cumulativeSeconds": 447,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -756,8 +756,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 65,
         "manualSegmentSeconds": 65,
-        "finalSegmentSeconds": 65,
-        "cumulativeSeconds": 492,
+        "finalSegmentSeconds": 78,
+        "cumulativeSeconds": 525,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -770,8 +770,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 85,
         "manualSegmentSeconds": 85,
-        "finalSegmentSeconds": 85,
-        "cumulativeSeconds": 577,
+        "finalSegmentSeconds": 76,
+        "cumulativeSeconds": 601,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -784,8 +784,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 54,
         "manualSegmentSeconds": 54,
-        "finalSegmentSeconds": 54,
-        "cumulativeSeconds": 631,
+        "finalSegmentSeconds": 50,
+        "cumulativeSeconds": 651,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -798,8 +798,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 46,
         "manualSegmentSeconds": 46,
-        "finalSegmentSeconds": 46,
-        "cumulativeSeconds": 677,
+        "finalSegmentSeconds": 57,
+        "cumulativeSeconds": 708,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -812,8 +812,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 35,
         "manualSegmentSeconds": 35,
-        "finalSegmentSeconds": 35,
-        "cumulativeSeconds": 712,
+        "finalSegmentSeconds": 31,
+        "cumulativeSeconds": 739,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -826,8 +826,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 51,
         "manualSegmentSeconds": 51,
-        "finalSegmentSeconds": 51,
-        "cumulativeSeconds": 763,
+        "finalSegmentSeconds": 47,
+        "cumulativeSeconds": 786,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -840,8 +840,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 117,
         "manualSegmentSeconds": 117,
-        "finalSegmentSeconds": 117,
-        "cumulativeSeconds": 880,
+        "finalSegmentSeconds": 105,
+        "cumulativeSeconds": 891,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -854,8 +854,8 @@
         "distanceKm": 0.3,
         "baseSegmentSeconds": 20,
         "manualSegmentSeconds": 20,
-        "finalSegmentSeconds": 20,
-        "cumulativeSeconds": 900,
+        "finalSegmentSeconds": 28,
+        "cumulativeSeconds": 919,
         "isDepartureStop": false,
         "isReturnStop": true
       }
