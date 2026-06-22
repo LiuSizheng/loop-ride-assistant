@@ -428,31 +428,22 @@ onUnmounted(() => {
             position: 'absolute', left: m.x + 'px', top: m.y + 'px',
             transform: 'translate(-50%,-100%)',
           }" @click.stop="selectStop(m.name)">
+          <template v-if="mapStore.showLabels">
+            <div :style="{
+              background: m.color, borderRadius: `${10/scale}px`,
+              padding: `${3/scale}px ${8/scale}px`,
+              whiteSpace: 'nowrap', marginBottom: `${4/scale}px`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1'
+            }">
+              <span :style="{color:'white',fontSize:`${10/scale}px`,fontWeight:'600',fontFamily:'PingFang SC,Microsoft YaHei,sans-serif'}">{{ m.name }}</span>
+            </div>
+          </template>
           <div :style="{
             width: `${8/scale}px`, height: `${8/scale}px`, borderRadius: '50%',
             background: m.color, border: `${2/scale}px solid white`,
             boxShadow: `0 ${1/scale}px ${2/scale}px rgba(0,0,0,0.3)`, margin: '0 auto'
           }"></div>
         </div>
-
-        <!-- 站点名标签（在 map-layer 外，用固定字号避免 CSS transform 导致模糊） -->
-        <template v-if="mapStore.showLabels">
-          <div v-for="(m, i) in stationMarkers" :key="'lbl'+i"
-            :style="{
-              position: 'absolute',
-              left: (panX + m.x * scale) + 'px',
-              top: (panY + m.y * scale - 12) + 'px',
-              transform: 'translate(-50%,-100%)',
-              pointerEvents: 'none',
-            }">
-            <div :style="{
-              background: m.color, borderRadius: '10px', padding: '3px 8px',
-              whiteSpace: 'nowrap', lineHeight: '1'
-            }">
-              <span style="color:white;font-size:10px;font-weight:600;font-family:'PingFang SC','Microsoft YaHei',sans-serif;">{{ m.name }}</span>
-            </div>
-          </div>
-        </template>
 
         <div v-if="userPixel" :style="{
           position: 'absolute', left: userPixel.x + 'px', top: userPixel.y + 'px',
