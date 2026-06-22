@@ -233,8 +233,8 @@ const stopArrivals = computed(() => {
         const secondsUntilCandidate = Math.round(candidatePred.arrivalMinutes * 60 - secondsNow.value)
         const secondsUntilDest = Math.round(destPred.arrivalMinutes * 60 - secondsNow.value)
 
-        // 步行赶不上这趟车 → 跳过
-        if (walkSeconds > secondsUntilCandidate) continue
+        // 步行赶不上这趟车 → 跳过（仅当车未发时检查）
+        if (secondsUntilCandidate > 0 && walkSeconds > secondsUntilCandidate) continue
         // 目的地到站超过 1 小时 → 跳过
         if (secondsUntilDest > 3600) continue
         // 已过站超过 1 分钟 → 跳过
@@ -321,7 +321,7 @@ const nearbyStopArrivals = computed(() => {
       if (!dep) continue
       const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
       if (secondsUntil < -300 || secondsUntil > 3600) continue
-      if (walkSeconds > secondsUntil) continue // 步行赶不上
+      if (secondsUntil > 0 && walkSeconds > secondsUntil) continue // 步行赶不上（仅当车未过站时检查）
       const { label, status } = arrivalCountdown(secondsUntil)
       arrivals.push({
         departure: dep,
