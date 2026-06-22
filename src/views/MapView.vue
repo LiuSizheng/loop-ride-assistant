@@ -6,7 +6,7 @@ import { useMapStore } from '@/stores/map'
 import { useGeolocation } from '@/composables/useGeolocation'
 import { getDateType } from '@/utils/datetime'
 import { computeActiveBusPositions } from '@/utils/bus_position'
-import { gcj02ToPixel, wgs84ToPixel } from '@/utils/map_project'
+import { wgs84ToPixel } from '@/utils/map_project'
 import { getNow } from '@/utils/time'
 import MapLegend from '@/components/map/MapLegend.vue'
 import StopInfoPanel from '@/components/map/StopInfoPanel.vue'
@@ -186,7 +186,7 @@ function onTouchMove(e: TouchEvent) {
 // ---- 定位按钮 ----
 function recenterOnUser() {
   if (mapStore.userLat === null || mapStore.userLng === null) return
-  const p = gcj02ToPixel(mapStore.userLng, mapStore.userLat)
+  const p = wgs84ToPixel(mapStore.userLng, mapStore.userLat)
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
   scale.value = 1.6
@@ -292,7 +292,7 @@ const busMarkers = computed(() => busPositions.value.map(b => {
 // ---- 用户位置 ----
 const userPixel = computed(() => {
   if (mapStore.userLat === null || mapStore.userLng === null) return null
-  return gcj02ToPixel(mapStore.userLng, mapStore.userLat)
+  return wgs84ToPixel(mapStore.userLng, mapStore.userLat)
 })
 
 // ---- 动画循环 ----

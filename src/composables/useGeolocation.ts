@@ -2,7 +2,6 @@ import { onMounted, onUnmounted, ref, watchEffect } from 'vue'
 import { useMapStore } from '@/stores/map'
 import { useUserStore } from '@/stores/user'
 import { useGlobalLocation } from '@/stores/global-location'
-import { wgs84ToGcj02 } from '@/utils/geo'
 
 export function useGeolocation() {
   const mapStore = useMapStore()
@@ -38,12 +37,11 @@ export function useGeolocation() {
         // 过滤低精度定位：accuracy > 50m 时跳过（避免到站检测误判）
         if (position.coords.accuracy > 50) return
 
-        // 浏览器 GPS 返回 WGS-84，转为 GCJ-02 适配高德地图
-        const [gcjLng, gcjLat] = wgs84ToGcj02(
-          position.coords.longitude,
-          position.coords.latitude
+        // 浏览器 GPS 返回 WGS-84，站点/路线数据均为 WGS-84，直接存储
+        mapStore.setUserLocation(
+          position.coords.latitude,
+          position.coords.longitude
         )
-        mapStore.setUserLocation(gcjLat, gcjLng)
         mapStore.userHeading = position.coords.heading ?? 0
         userStore.setGpsEnabled(true)
         userStore.locationPermissionDenied = false

@@ -1,0 +1,1 @@
+import{W as o,ak as e}from"./index-DmyWD9Om.js";function u(n){const t=e();t&&o(t.proxy,n)}let s=0;function a(){const n=e(),{name:t="unknown"}=(n==null?void 0:n.type)||{};return`${t}-${++s}`}export{a,u};
