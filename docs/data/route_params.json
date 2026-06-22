@@ -196,7 +196,7 @@
     "route": "环线1路",
     "patternName": "环线1路就餐专线（系统楼发车）",
     "departureStation": "系统楼",
-    "totalSeconds": 853,
+    "totalSeconds": 1011,
     "stopCount": 9,
     "stops": [
       {
@@ -264,8 +264,8 @@
         "distanceKm": 0.55,
         "baseSegmentSeconds": 70,
         "manualSegmentSeconds": 70,
-        "finalSegmentSeconds": 70,
-        "cumulativeSeconds": 521,
+        "finalSegmentSeconds": 101,
+        "cumulativeSeconds": 552,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -278,8 +278,8 @@
         "distanceKm": 0.45,
         "baseSegmentSeconds": 45,
         "manualSegmentSeconds": 45,
-        "finalSegmentSeconds": 63,
-        "cumulativeSeconds": 584,
+        "finalSegmentSeconds": 91,
+        "cumulativeSeconds": 643,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -292,8 +292,8 @@
         "distanceKm": 0.45,
         "baseSegmentSeconds": 48,
         "manualSegmentSeconds": 48,
-        "finalSegmentSeconds": 66,
-        "cumulativeSeconds": 650,
+        "finalSegmentSeconds": 95,
+        "cumulativeSeconds": 738,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -306,8 +306,8 @@
         "distanceKm": 1,
         "baseSegmentSeconds": 176,
         "manualSegmentSeconds": 176,
-        "finalSegmentSeconds": 158,
-        "cumulativeSeconds": 808,
+        "finalSegmentSeconds": 228,
+        "cumulativeSeconds": 966,
         "isDepartureStop": false,
         "isReturnStop": false
       },
@@ -321,7 +321,7 @@
         "baseSegmentSeconds": 30,
         "manualSegmentSeconds": 30,
         "finalSegmentSeconds": 45,
-        "cumulativeSeconds": 853,
+        "cumulativeSeconds": 1011,
         "isDepartureStop": false,
         "isReturnStop": true
       }
