@@ -417,31 +417,22 @@ onUnmounted(() => {
           <g v-for="(line, i) in routeLines" :key="'l'+i">
             <polyline
               :points="line.points" fill="none" :stroke="line.color"
-              :stroke-width="6 / scale" stroke-opacity="0.7"
+              :stroke-width="3.5 / scale" stroke-opacity="0.7"
               :stroke-dasharray="line.dashed ? `${10/scale} ${6/scale}` : undefined"
               stroke-linecap="round" stroke-linejoin="round" />
           </g>
         </svg>
 
-        <div v-for="(m, i) in stationMarkers" :key="'s'+i" class="map-overlay-item"
+        <!-- 站点圆点（在 map-layer 内，随底图缩放） -->
+        <div v-for="(m, i) in stationMarkers" :key="'sd'+i"
           :style="{
             position: 'absolute', left: m.x + 'px', top: m.y + 'px',
-            transform: 'translate(-50%,-100%)',
+            transform: 'translate(-50%,-50%)',
           }" @click.stop="selectStop(m.name)">
-          <template v-if="mapStore.showLabels">
-            <div :style="{
-              background: m.color, borderRadius: `${10/scale}px`,
-              padding: `${3/scale}px ${8/scale}px`,
-              whiteSpace: 'nowrap', marginBottom: `${4/scale}px`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1'
-            }">
-              <span :style="{color:'white',fontSize:`${10/scale}px`,fontWeight:'600',fontFamily:'PingFang SC,Microsoft YaHei,sans-serif'}">{{ m.name }}</span>
-            </div>
-          </template>
           <div :style="{
             width: `${8/scale}px`, height: `${8/scale}px`, borderRadius: '50%',
             background: m.color, border: `${2/scale}px solid white`,
-            boxShadow: `0 ${1/scale}px ${2/scale}px rgba(0,0,0,0.3)`, margin: '0 auto'
+            boxShadow: `0 ${1/scale}px ${2/scale}px rgba(0,0,0,0.3)`
           }"></div>
         </div>
 
@@ -460,6 +451,26 @@ onUnmounted(() => {
             transformOrigin: 'center',
           }"
           v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
+      </div>
+
+      <!-- 站点标签（在 map-layer 外，屏幕空间定位，始终保持清晰锐利） -->
+      <div v-for="(m, i) in stationMarkers" :key="'sl'+i"
+        v-show="mapStore.showLabels"
+        :style="{
+          position: 'absolute', zIndex: 50,
+          left: (panX + m.x * scale) + 'px',
+          top: (panY + m.y * scale) + 'px',
+          transform: 'translate(-50%, calc(-100% - 5px))',
+          pointerEvents: 'auto'
+        }" @click.stop="selectStop(m.name)">
+        <div :style="{
+          background: m.color, borderRadius: '4px',
+          padding: '2px 6px',
+          whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1'
+        }">
+          <span :style="{color:'white',fontSize:'10px',fontWeight:'600',fontFamily:'PingFang SC,Microsoft YaHei,sans-serif'}">{{ m.name }}</span>
+        </div>
       </div>
 
     <MapLegend />

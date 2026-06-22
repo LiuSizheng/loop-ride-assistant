@@ -14,7 +14,7 @@ import { useInstallPrompt } from '@/composables/useInstallPrompt'
 const route = useRoute()
 const scheduleStore = useScheduleStore()
 const { isOnline } = useOnlineStatus()
-const { showPrompt, isIOS, canNativeInstall, dismissForever, handleInstall } = useInstallPrompt()
+const { showPrompt, isIOS, dismiss, dismissForever } = useInstallPrompt()
 
 // 调试工具开关：true 显示时间/位置模拟面板，false 隐藏
 const showDebugTools = false
@@ -50,15 +50,12 @@ onMounted(() => {
     :show-cancel-button="true"
     cancel-button-text="不再提示"
     confirm-button-text="知道了"
-    @confirm="handleInstall"
+    @confirm="dismiss"
     @cancel="dismissForever"
   >
     <div style="padding: 8px 16px 16px; font-size: 14px; line-height: 1.8; color: #374151;">
       <template v-if="isIOS">
         点击底部 <strong>分享按钮</strong> → <strong>添加到主屏幕</strong>，即可像 App 一样使用环线坐车。
-      </template>
-      <template v-else-if="canNativeInstall">
-        点击「知道了」后浏览器会弹出安装提示，将环线坐车添加到桌面。
       </template>
       <template v-else>
         在浏览器菜单中选择<strong>「添加到主屏幕」</strong>，即可像 App 一样使用环线坐车。
