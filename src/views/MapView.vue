@@ -417,42 +417,40 @@ onUnmounted(() => {
           <g v-for="(line, i) in routeLines" :key="'l'+i">
             <polyline
               :points="line.points" fill="none" :stroke="line.color"
-              stroke-width="6" stroke-opacity="0.7"
-              :stroke-dasharray="line.dashed ? '10 6' : undefined"
-              stroke-linecap="round" stroke-linejoin="round"
-              vector-effect="non-scaling-stroke" />
+              :stroke-width="6 / scale" stroke-opacity="0.7"
+              :stroke-dasharray="line.dashed ? `${10/scale} ${6/scale}` : undefined"
+              stroke-linecap="round" stroke-linejoin="round" />
           </g>
         </svg>
 
         <div v-for="(m, i) in stationMarkers" :key="'s'+i" class="map-overlay-item"
           :style="{
             position: 'absolute', left: m.x + 'px', top: m.y + 'px',
-            transform: `translate(-50%,-100%) scale(${1/scale})`,
-            transformOrigin: 'bottom center',
+            transform: 'translate(-50%,-100%)',
           }" @click.stop="selectStop(m.name)">
           <template v-if="mapStore.showLabels">
             <div :style="{
-              background: m.color, borderRadius: '10px', padding: '3px 8px',
-              whiteSpace: 'nowrap', marginBottom: '4px',
+              background: m.color, borderRadius: `${10/scale}px`,
+              padding: `${3/scale}px ${8/scale}px`,
+              whiteSpace: 'nowrap', marginBottom: `${4/scale}px`,
               display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1'
             }">
-              <span style="color:white;font-size:10px;font-weight:600;font-family:'PingFang SC','Microsoft YaHei',sans-serif;">{{ m.name }}</span>
+              <span :style="{color:'white',fontSize:`${10/scale}px`,fontWeight:'600',fontFamily:'PingFang SC,Microsoft YaHei,sans-serif'}">{{ m.name }}</span>
             </div>
           </template>
           <div :style="{
-            width: '8px', height: '8px', borderRadius: '50%',
-            background: m.color, border: '2px solid white',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.3)', margin: '0 auto'
+            width: `${8/scale}px`, height: `${8/scale}px`, borderRadius: '50%',
+            background: m.color, border: `${2/scale}px solid white`,
+            boxShadow: `0 ${1/scale}px ${2/scale}px rgba(0,0,0,0.3)`, margin: '0 auto'
           }"></div>
         </div>
 
         <div v-if="userPixel" :style="{
           position: 'absolute', left: userPixel.x + 'px', top: userPixel.y + 'px',
-          transform: `translate(-50%,-50%) scale(${1/scale})`,
-          transformOrigin: 'center', pointerEvents: 'none'
+          transform: 'translate(-50%,-50%)', pointerEvents: 'none'
         }">
-          <div style="width:16px;height:16px;border-radius:50%;background:rgba(59,130,246,0.2);"></div>
-          <div style="width:10px;height:10px;border-radius:50%;background:#3B82F6;border:3px solid white;position:absolute;top:3px;left:3px;"></div>
+          <div :style="{width:`${16/scale}px`,height:`${16/scale}px`,borderRadius:'50%',background:'rgba(59,130,246,0.2)'}"></div>
+          <div :style="{width:`${10/scale}px`,height:`${10/scale}px`,borderRadius:'50%',background:'#3B82F6',border:`${3/scale}px solid white`,position:'absolute',top:`${3/scale}px`,left:`${3/scale}px`}"></div>
         </div>
 
         <div v-for="b in busMarkers" :key="b.departureId" class="bus-marker"
