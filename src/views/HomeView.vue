@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed, ref, watch } from 'vue'
+import { onMounted, onUnmounted, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNextBus } from '@/composables/useNextBus'
 import { useGeolocation } from '@/composables/useGeolocation'
@@ -100,17 +100,12 @@ const filteredStops = computed(() => {
 })
 const freqTop3 = computed(() => sortedStops.value.slice(0, 3))
 
-// 最近站点
+// 最近站点（仅用于 GPS 定位提示，不自动选中）
 const nearestStop = computed(() => {
   if (mapStore.userLat === null || mapStore.userLng === null) return null
   const result = findNearestStop(mapStore.userLat, mapStore.userLng, scheduleStore.stations)
   return result?.station ?? null
 })
-watch(nearestStop, (stop) => {
-  if (!userManuallySelected.value && stop) {
-    selectedStop.value = stop.name
-  }
-}, { immediate: true })
 
 function selectStop(name: string) {
   if (selectedStop.value === name) {
