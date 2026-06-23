@@ -29,7 +29,7 @@ const arrivals = computed<ArrivalItem[]>(() => {
   )
 
   return preds
-    .filter(p => !p.isDepartureStop)
+    .filter(p => !p.isDepartureStop && !p.isReturnStop)
     .map((p) => {
       let delta = p.arrivalMinutes * 60 - secondsNow.value
       if (delta < -300) return null   // 过站 5 分钟后移除
