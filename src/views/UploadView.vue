@@ -7,7 +7,6 @@ import { useGeolocation } from '@/composables/useGeolocation'
 import { findNearestStop } from '@/utils/geo'
 import { showConfirmDialog, showSuccessToast, showFailToast } from 'vant'
 import { getNow } from '@/utils/time'
-import AutoRecordPanel from '@/components/common/AutoRecordPanel.vue'
 
 const uploadStore = useUploadStore()
 const scheduleStore = useScheduleStore()
@@ -247,12 +246,7 @@ watch(selectedRoute, () => {
         </div>
       </van-tab>
 
-      <!-- Tab 2: 自动记录 -->
-      <van-tab title="自动记录">
-        <AutoRecordPanel />
-      </van-tab>
-
-      <!-- Tab 3: 我的记录 -->
+      <!-- Tab 2: 我的记录 -->
       <van-tab title="我的记录">
         <div class="history-section">
           <div v-if="!uploadStore.nickname" class="hint">请先在「手动记录」中输入昵称</div>
