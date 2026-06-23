@@ -376,11 +376,11 @@ const nearbyStopArrivals = computed(() => {
     </div>
 
     <div class="section">
-      <van-notice-bar left-icon="info-o" text="本软件的时间表和预测到站时间仅供参考，欢迎使用记录功能帮忙标记车辆运行时间" clickable @click="showNotice = true" />
+      <van-notice-bar left-icon="info-o" text="时间表仅供参考。点「记录」→手动记录，选线路后逐站计时即可帮忙校准到站时间" clickable @click="showNotice = true" />
       <van-dialog v-model:show="showNotice" title="公告" confirm-button-text="我知道了">
         <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #374151;">
-          本软件的时间表和预测到站时间仅供参考，欢迎使用记录功能帮忙标记车辆运行时间，以使得预测更加准确。<br><br>
-          <b>注意：</b>自动记录功能暂不完善，请使用手动记录功能。
+          时间表和预测到站时间仅供参考。<br><br>
+          <b>如何帮忙校准：</b>乘车时点击底部「记录」→ 手动记录 → 选择线路，上车后逐站点击"到站计时"，系统会自动记录每段运行时间，用于优化到站预测。
         </div>
       </van-dialog>
       <van-search v-model="stopSearch" placeholder="搜索站点名称" shape="round" background="transparent" />
