@@ -188,9 +188,8 @@ const stopArrivals = computed(() => {
     if (isNearby) {
       // 和默认视图一样：只展示这个站的到站车次
       for (const p of preds) {
-        // 环线起终点同站：isDepartureStop 是发车不是到站，isReturnStop 是绕一圈回来
-        // 两者都不适合作为"到达此站"展示，保留中途经过的到站记录即可
-        if (p.isReturnStop || p.isDepartureStop) continue
+        // 环线起终点同站：isDepartureStop 是发车不算到站，isReturnStop 是绕一圈回来应展示
+        if (p.isDepartureStop) continue
         const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
         if (!dep) continue
         const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
@@ -285,7 +284,7 @@ const stopArrivals = computed(() => {
     for (const p of preds) {
       const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
       if (!dep) continue
-      if (p.isDepartureStop || p.isReturnStop) continue
+      if (p.isDepartureStop) continue
 
       const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
       if (secondsUntil < -300 || secondsUntil > 3600) continue
@@ -333,7 +332,7 @@ const nearbyStopArrivals = computed(() => {
     const preds = scheduleStore.getPredictionsForStop(stopName, dateType.value)
 
     for (const p of preds) {
-      if (p.isDepartureStop || p.isReturnStop) continue
+      if (p.isDepartureStop) continue
       const dep = scheduleStore.departures.find(d => d.recordId === p.departureId)
       if (!dep) continue
       const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
