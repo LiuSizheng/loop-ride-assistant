@@ -63,6 +63,7 @@ const selectedStop = ref<string | null>(null)
 const stopExpanded = ref(false)
 const showAllArrivals = ref(false)
 const expandedCards = ref<Set<string>>(new Set())
+const expandedSections = ref<Set<string>>(new Set())
 const nowTick = ref(0)  // 用于强制刷新
 const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
 
@@ -132,6 +133,13 @@ function busCardKey(item: StopArrivalItem): string {
 }
 function nearbyCardKey(item: StopArrivalItem): string {
   return 'nearby-' + item.stopName + '-' + item.departure.recordId
+}
+
+function toggleNearbySection(stopName: string) {
+  const next = new Set(expandedSections.value)
+  if (next.has(stopName)) next.delete(stopName)
+  else next.add(stopName)
+  expandedSections.value = next
 }
 
 // 跳转地图聚焦
@@ -384,32 +392,37 @@ const nearbyStopArrivals = computed(() => {
     <template v-if="!selectedStop && nearbyStopArrivals.length > 0">
       <div v-for="section in nearbyStopArrivals" :key="section.stopName" class="section">
         <div class="section-title">「{{ section.stopName }}」 {{ section.walkLabel }}</div>
-        <div v-for="item in section.arrivals" :key="item.departure.recordId" class="bus-card nearby" :class="{ expanded: expandedCards.has(nearbyCardKey(item)) }" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
-          <div class="bus-card-main" @click="toggleBusCard(nearbyCardKey(item))">
-          <div class="bus-card-left">
-            <div class="route-col">
-              <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
-              <span class="bus-shift">{{ item.departure.shiftName }}</span>
+        <template v-for="(item, idx) in section.arrivals" :key="item.departure.recordId">
+          <div v-if="idx < 5 || expandedSections.has(section.stopName)" class="bus-card nearby" :class="{ expanded: expandedCards.has(nearbyCardKey(item)) }" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
+            <div class="bus-card-main" @click="toggleBusCard(nearbyCardKey(item))">
+            <div class="bus-card-left">
+              <div class="route-col">
+                <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
+                <span class="bus-shift">{{ item.departure.shiftName }}</span>
+              </div>
+              <span v-if="item.departure.isGaochaoDeparture" class="tags-col">
+                <span class="bus-from">系统楼发车</span>
+                <span class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
+              </span>
+              <span v-else class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
             </div>
-            <span v-if="item.departure.isGaochaoDeparture" class="tags-col">
-              <span class="bus-from">系统楼发车</span>
-              <span class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
-            </span>
-            <span v-else class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
+            <div class="bus-card-right">
+              <div class="walk-hint">{{ item.walkLabel }}到「{{ item.stopName }}」</div>
+              <div class="arrival-time">{{ item.arrivalTime }}</div>
+              <ETAIndicator :seconds-until="item.secondsUntil!" type="arrival" />
+            </div>
+            </div>
+            <BusStopTimeline
+              v-if="expandedCards.has(nearbyCardKey(item))"
+              :departure-id="item.departure.recordId"
+              :route-key="item.departure.routeKey"
+              :highlight-origin="item.stopName"
+              @view-on-map="handleViewOnMap"
+            />
           </div>
-          <div class="bus-card-right">
-            <div class="walk-hint">{{ item.walkLabel }}到「{{ item.stopName }}」</div>
-            <div class="arrival-time">{{ item.arrivalTime }}</div>
-            <ETAIndicator :seconds-until="item.secondsUntil!" type="arrival" />
-          </div>
-          </div>
-          <BusStopTimeline
-            v-if="expandedCards.has(nearbyCardKey(item))"
-            :departure-id="item.departure.recordId"
-            :route-key="item.departure.routeKey"
-            :highlight-origin="item.stopName"
-            @view-on-map="handleViewOnMap"
-          />
+        </template>
+        <div v-if="section.arrivals.length > 5" class="show-more-btn" @click="toggleNearbySection(section.stopName)">
+          {{ expandedSections.has(section.stopName) ? '收起 ▲' : `展开更多 ${section.arrivals.length - 5} 趟车次 ↓` }}
         </div>
       </div>
     </template>
