@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useMapStore } from '@/stores/map'
 import { useScheduleStore } from '@/stores/schedule'
 import { getDateType, getSecondsSinceMidnight } from '@/utils/datetime'
@@ -15,7 +15,11 @@ interface ArrivalItem extends ArrivalPrediction {
 const mapStore = useMapStore()
 const scheduleStore = useScheduleStore()
 const dateType = computed(() => getDateType())
-const secondsNow = computed(() => getSecondsSinceMidnight())
+
+// 1 秒滴答：驱动 secondsNow 每秒钟重新计算，实现实时读秒
+const nowTick = ref(0)
+let tickTimer: ReturnType<typeof setInterval> | null = null
+const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
 
 const arrivals = computed<ArrivalItem[]>(() => {
   if (!mapStore.selectedStop) return []
@@ -28,7 +32,7 @@ const arrivals = computed<ArrivalItem[]>(() => {
     .filter(p => !p.isDepartureStop && !p.isReturnStop)
     .map((p) => {
       let delta = p.arrivalMinutes * 60 - secondsNow.value
-      if (delta < -120) return null
+      if (delta < -300) return null   // 过站 5 分钟后移除
       if (delta > 3600) return null
 
       const departure = scheduleStore.departures.find(
@@ -49,6 +53,14 @@ const arrivals = computed<ArrivalItem[]>(() => {
 function close() {
   mapStore.selectStop(null)
 }
+
+onMounted(() => {
+  tickTimer = setInterval(() => { nowTick.value++ }, 1000)
+})
+
+onUnmounted(() => {
+  if (tickTimer) clearInterval(tickTimer)
+})
 </script>
 
 <template>
