@@ -17,7 +17,7 @@ const { isOnline } = useOnlineStatus()
 const { showPrompt, isIOS, dismiss, dismissForever } = useInstallPrompt()
 
 // 调试工具开关：true 显示时间/位置模拟面板，false 隐藏
-const showDebugTools = true
+const showDebugTools = false
 
 const showTabBar = computed(() => {
   const tabRoutes = ['home', 'schedule', 'stop', 'upload', 'map']
