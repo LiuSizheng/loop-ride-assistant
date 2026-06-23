@@ -376,7 +376,11 @@ const nearbyStopArrivals = computed(() => {
     </div>
 
     <div class="section">
-      <van-notice-bar left-icon="info-o" mode="link" text="线路试运行，随时会调整，时间表和预测时间仅供参考。如方便可在记录页手动记录到站时间，帮助提高预测精度。" clickable @click="showNotice = true" />
+      <van-notice-bar left-icon="info-o" text="线路试运行，随时会调整，时间表和预测时间仅供参考。如方便可在记录页手动记录到站时间，帮助提高预测精度。" clickable @click="showNotice = true">
+        <template #right-icon>
+          <span style="color:var(--color-primary);font-size:13px;white-space:nowrap">详情 ›</span>
+        </template>
+      </van-notice-bar>
       <van-dialog v-model:show="showNotice" title="公告" confirm-button-text="我知道了">
         <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #374151;">
           线路试运行，随时会调整，时间表和预测时间仅供参考。<br><br>
