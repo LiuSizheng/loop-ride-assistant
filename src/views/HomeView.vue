@@ -467,18 +467,29 @@ const nearbyStopArrivals = computed(() => {
 
     <div v-if="departingSoon.length > 0" class="section">
       <div class="section-title">即将发车</div>
-      <div v-for="item in departingSoon" :key="item.departure.recordId" class="bus-card departing" :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
-        <div class="bus-card-left">
-          <div class="route-col">
-            <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
-            <span class="bus-shift">{{ item.departure.shiftName }}</span>
+      <div v-for="item in departingSoon" :key="item.departure.recordId"
+        class="bus-card departing"
+        :class="{ expanded: expandedCards.has('departing-' + item.departure.recordId) }"
+        :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
+        <div class="bus-card-main" @click="toggleBusCard('departing-' + item.departure.recordId)">
+          <div class="bus-card-left">
+            <div class="route-col">
+              <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
+              <span class="bus-shift">{{ item.departure.shiftName }}</span>
+            </div>
+            <span class="bus-from" v-if="item.departure.isGaochaoDeparture">系统楼发车</span>
           </div>
-          <span class="bus-from" v-if="item.departure.isGaochaoDeparture">系统楼发车</span>
+          <div class="bus-card-right">
+            <div class="departure-time">{{ item.departure.departureTime }}</div>
+            <ETAIndicator :seconds-until="item.secondsUntil" type="departure" />
+          </div>
         </div>
-        <div class="bus-card-right">
-          <div class="departure-time">{{ item.departure.departureTime }}</div>
-          <ETAIndicator :seconds-until="item.secondsUntil" type="departure" />
-        </div>
+        <BusStopTimeline
+          v-if="expandedCards.has('departing-' + item.departure.recordId)"
+          :departure-id="item.departure.recordId"
+          :route-key="item.departure.routeKey"
+          @view-on-map="handleViewOnMap"
+        />
       </div>
     </div>
 
