@@ -376,11 +376,12 @@ const nearbyStopArrivals = computed(() => {
     </div>
 
     <div class="section">
-      <van-notice-bar left-icon="info-o" text="时间表仅供参考。点「记录」→手动记录，选线路后逐站计时即可帮忙校准到站时间" clickable @click="showNotice = true" />
+      <van-notice-bar left-icon="info-o" text="线路试运行，随时会调整，时间表和预测时间仅供参考。如方便可在记录页手动记录到站时间，帮助提高预测精度。" clickable @click="showNotice = true" />
       <van-dialog v-model:show="showNotice" title="公告" confirm-button-text="我知道了">
         <div style="padding: 16px; font-size: 14px; line-height: 1.8; color: #374151;">
-          时间表和预测到站时间仅供参考。<br><br>
-          <b>如何帮忙校准：</b>乘车时点击底部「记录」→ 手动记录 → 选择线路，上车后逐站点击"到站计时"，系统会自动记录每段运行时间，用于优化到站预测。
+          线路试运行，随时会调整，时间表和预测时间仅供参考。<br><br>
+          <b>如何帮忙校准：</b>点击底部「记录」→ 手动记录 → 输入昵称 → 选择线路 → 点击「上车」，到站停车即点击「计时」，下车提交，全程屏幕常亮，浏览器在前台。如未到站误触「计时」可点击回退，如测试功能或记录失败，可在我的记录中撤销。<br><br>
+          <b>统一记录规范：</b>除首站发车是在车辆启动点击「上车」外，其余时候到站即点击「计时」，而非等上下客完毕车辆启动才点击。
         </div>
       </van-dialog>
       <van-search v-model="stopSearch" placeholder="搜索站点名称" shape="round" background="transparent" />
