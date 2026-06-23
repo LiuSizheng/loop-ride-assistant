@@ -533,7 +533,7 @@ const nearbyStopArrivals = computed(() => {
 </template>
 
 <style scoped>
-.home-page { padding: 16px; max-width: 480px; margin: 0 auto; }
+.home-page { padding: 16px; max-width: 560px; margin: 0 auto; }
 .today-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .date-text { font-size: 16px; font-weight: 600; }
 .weather-row { display: flex; align-items: center; gap: 4px; }
