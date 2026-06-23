@@ -68,12 +68,14 @@ const expandedSections = ref<Set<string>>(new Set())
 const nowTick = ref(0)  // 用于强制刷新
 const secondsNow = computed(() => { void nowTick.value; return getSecondsSinceMidnight() })
 
-// 站点点击频次（仅用于本地持久化，排序在 onMounted 时确定）
+// 站点点击频次（仅用于持久化，实时更新但不影响排序）
 const clickFreq = ref<Record<string, number>>({})
-// 站点按点击频次排序（响应 stations 数据加载）
+// 排序用的冻结频次（仅在 onMounted / 数据加载时从 localStorage 读取，避免点击后立即跳位）
+const sortOrder = ref<Record<string, number>>({})
+// 站点按冻结频次排序
 const sortedStops = computed(() => {
   const stops = [...scheduleStore.stations.map(s => s.name)]
-  stops.sort((a, b) => (clickFreq.value[b] || 0) - (clickFreq.value[a] || 0))
+  stops.sort((a, b) => (sortOrder.value[b] || 0) - (sortOrder.value[a] || 0))
   return stops
 })
 // 是否由用户手动点选过站点（手动点选后不自动覆盖）
@@ -81,8 +83,19 @@ const userManuallySelected = ref(false)
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
+function initSortOrder() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('stop_click_freq') || '{}')
+    clickFreq.value = saved
+    sortOrder.value = { ...saved }
+  } catch {
+    clickFreq.value = {}
+    sortOrder.value = {}
+  }
+}
+
 onMounted(() => {
-  try { clickFreq.value = JSON.parse(localStorage.getItem('stop_click_freq') || '{}') } catch { clickFreq.value = {} }
+  initSortOrder()
   refreshTimer = setInterval(() => { refresh(); nowTick.value++ }, 1000)
 })
 
@@ -95,7 +108,7 @@ function recordClick(stopName: string) {
   try { localStorage.setItem('stop_click_freq', JSON.stringify(clickFreq.value)) } catch {}
 }
 
-const collapsedStops = computed(() => sortedStops.value.slice(0, 6))
+const collapsedStops = computed(() => sortedStops.value.slice(0, 5))
 const filteredStops = computed(() => {
   if (!stopSearch.value) return []
   return sortedStops.value.filter(s => s.includes(stopSearch.value))
