@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { useScheduleStore } from '@/stores/schedule'
 import { useMapStore } from '@/stores/map'
@@ -18,6 +18,7 @@ const route = useRoute()
 useGeolocation()
 
 const mapContainer = ref<HTMLDivElement>()
+const overlayLayer = ref<HTMLDivElement>()
 const mapLoading = ref(true)
 
 // ---- 底图参数 ----
@@ -66,24 +67,12 @@ const layerStyle = computed(() => ({
   transformOrigin: '0 0',
 }))
 
-// ---- 固定视觉大小（使用 SVG vector-effect）----
-// 基准值（固定像素大小，不随缩放变化）
-const STROKE_WIDTH = 3
-const FONT_SIZE = 10
-const CIRCLE_RADIUS = 4
-const LABEL_PADDING_X = 8
-const LABEL_PADDING_Y = 4
-const LABEL_HEIGHT = 20
-const LABEL_RX = 10
-
 // ---- 边界限制（防止显示黑色区域）----
 function clampPan() {
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
   const scaledW = IMG_W * scale.value
   const scaledH = IMG_H * scale.value
-
-  // 限制：图片边缘不能拖进屏幕内（最小为0，最大为屏幕尺寸减去图片尺寸）
   panX.value = Math.min(0, Math.max(vw - scaledW, panX.value))
   panY.value = Math.min(0, Math.max(vh - scaledH, panY.value))
 }
@@ -95,7 +84,7 @@ const MIN_SCALE = computed(() => {
   return Math.max(vw / IMG_W, vh / IMG_H)
 })
 
-// 判断地图是否偏离太远（有边界限制时基本不会触发）
+// 判断地图是否偏离太远
 const isMapLost = computed(() => {
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
@@ -118,7 +107,7 @@ function onPointerMove(e: PointerEvent) {
   panX.value += e.clientX - lastX
   panY.value += e.clientY - lastY
   lastX = e.clientX; lastY = e.clientY
-  clampPan() // 应用边界限制
+  clampPan()
 }
 function onPointerUp() { isDragging = false }
 
@@ -128,11 +117,10 @@ function onWheel(e: WheelEvent) {
   const factor = e.deltaY > 0 ? 0.9 : 1.1
   const newScale = Math.max(MIN_SCALE.value, Math.min(MAX_SCALE, scale.value * factor))
   const ratio = newScale / scale.value
-  // 保持光标位置不变：pan += (1 - ratio) * (cursor - pan)
   panX.value = e.clientX - (e.clientX - panX.value) * ratio
   panY.value = e.clientY - (e.clientY - panY.value) * ratio
   scale.value = newScale
-  clampPan() // 应用边界限制
+  clampPan()
 }
 
 // ---- 双击缩放（以点击位置为中心） ----
@@ -143,7 +131,7 @@ function onDblClick(e: MouseEvent) {
   panX.value = e.clientX - (e.clientX - panX.value) * ratio
   panY.value = e.clientY - (e.clientY - panY.value) * ratio
   scale.value = newScale
-  clampPan() // 应用边界限制
+  clampPan()
 }
 
 // ---- 双指缩放（以双指中心为基准） ----
@@ -171,15 +159,13 @@ function onTouchMove(e: TouchEvent) {
     const dy = e.touches[0].clientY - e.touches[1].clientY
     const dist = Math.hypot(dx, dy)
     const newScale = Math.max(MIN_SCALE.value, Math.min(MAX_SCALE, pinchScale * (dist / pinchDist)))
-    // 双指中心新位置
     const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2
     const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2
-    // 保持双指中心点固定在屏幕上
     const ratio = newScale / pinchScale
     panX.value = cx - (pinchCenterX - pinchPanX) * ratio
     panY.value = cy - (pinchCenterY - pinchPanY) * ratio
     scale.value = newScale
-    clampPan() // 应用边界限制
+    clampPan()
   }
 }
 
@@ -192,7 +178,7 @@ function recenterOnUser() {
   scale.value = 1.6
   panX.value = vw / 2 - p.x * scale.value
   panY.value = vh / 2 - p.y * scale.value
-  clampPan() // 应用边界限制
+  clampPan()
   mapStore.recenterOnUser()
 }
 
@@ -201,7 +187,6 @@ function recenterMap() {
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
 
-  // 计算所有站点的边界范围
   let minLng = Infinity, maxLng = -Infinity
   let minLat = Infinity, maxLat = -Infinity
 
@@ -212,18 +197,15 @@ function recenterMap() {
     maxLat = Math.max(maxLat, station.lat)
   }
 
-  // 计算边界中心点
   const centerLng = (minLng + maxLng) / 2
   const centerLat = (minLat + maxLat) / 2
   const centerPx = wgs84ToPixel(centerLng, centerLat)
 
-  // 计算边界像素范围
   const topLeft = wgs84ToPixel(minLng, maxLat)
   const bottomRight = wgs84ToPixel(maxLng, minLat)
   const boundsW = bottomRight.x - topLeft.x
   const boundsH = bottomRight.y - topLeft.y
 
-  // 计算合适的缩放比例，留出边距（上多下少，整体放大）
   const paddingTop = 60
   const paddingBottom = 30
   const paddingLeft = 50
@@ -232,11 +214,10 @@ function recenterMap() {
   const scaleY = (vh - paddingTop - paddingBottom) / boundsH
   const initialScale = Math.min(scaleX, scaleY, 0.6)
 
-  // 居中显示整个校园
   scale.value = initialScale
   panX.value = vw / 2 - centerPx.x * scale.value
   panY.value = (vh - paddingBottom + paddingTop) / 2 - centerPx.y * scale.value
-  clampPan() // 应用边界限制
+  clampPan()
 }
 
 // ---- 路线折线像素坐标 ----
@@ -310,7 +291,7 @@ function animate() {
       scale.value = 1.6
       panX.value = vw / 2 - px.x * scale.value
       panY.value = vh / 2 - px.y * scale.value
-      clampPan() // 应用边界限制
+      clampPan()
       trackedBusId.value = null
     }
   }
@@ -323,12 +304,11 @@ function selectStop(name: string) { mapStore.selectStop(name) }
 let initializing = false
 
 function initMapView() {
-  if (scheduleStore.stations.length === 0) return // 数据未到，等 watch 触发
+  if (scheduleStore.stations.length === 0) return
 
   const vw = mapContainer.value?.clientWidth ?? window.innerWidth
   const vh = mapContainer.value?.clientHeight ?? window.innerHeight
 
-  // 计算所有站点的边界范围，以便初始显示整个校园
   let minLng = Infinity, maxLng = -Infinity
   let minLat = Infinity, maxLat = -Infinity
 
@@ -339,33 +319,28 @@ function initMapView() {
     maxLat = Math.max(maxLat, station.lat)
   }
 
-  // 计算边界中心点
   const centerLng = (minLng + maxLng) / 2
   const centerLat = (minLat + maxLat) / 2
   const centerPx = wgs84ToPixel(centerLng, centerLat)
 
-  // 计算边界像素范围
   const topLeft = wgs84ToPixel(minLng, maxLat)
   const bottomRight = wgs84ToPixel(maxLng, minLat)
   const boundsW = bottomRight.x - topLeft.x
   const boundsH = bottomRight.y - topLeft.y
 
-  // 计算合适的缩放比例，留出边距（上多下少，整体放大）
   const paddingTop = 50
   const paddingBottom = 20
   const paddingLeft = 40
   const paddingRight = 40
   const scaleX = (vw - paddingLeft - paddingRight) / boundsW
   const scaleY = (vh - paddingTop - paddingBottom) / boundsH
-  const initialScale = Math.min(scaleX, scaleY, 0.7) // 最大0.7，更贴近
+  const initialScale = Math.min(scaleX, scaleY, 0.7)
 
-  // 设置初始缩放和位置，让整个校园居中显示（上多下少）
   scale.value = initialScale
   panX.value = vw / 2 - centerPx.x * scale.value
   panY.value = (vh - paddingBottom + paddingTop) / 2 - centerPx.y * scale.value
-  clampPan() // 应用边界限制
+  clampPan()
 
-  // 路线可见性
   initializing = true
   const q = route.query
   if (q.route) { mapStore.toggleRouteOnly(q.route as string) }
@@ -382,7 +357,17 @@ onMounted(() => {
   initMapView()
 })
 
-// 数据异步加载：首次进入时 stations 可能为空，等数据到齐重新初始化
+// 核心性能优化：
+// 所有 overlay 元素（路线、站点、公交、标签）不通过 Vue 响应式更新样式，
+// 而是通过 CSS 自定义属性 + calc() 让浏览器 CSS 引擎一次性计算所有元素位置。
+// 每次拖拽/缩放只需 3 次 setProperty 调用，与元素数量无关。
+watchEffect(() => {
+  if (!overlayLayer.value) return
+  overlayLayer.value.style.setProperty('--scale', String(scale.value))
+  overlayLayer.value.style.setProperty('--panX', String(panX.value))
+  overlayLayer.value.style.setProperty('--panY', String(panY.value))
+})
+
 watch(() => scheduleStore.isDataLoaded, (loaded) => {
   if (loaded) initMapView()
 })
@@ -406,88 +391,102 @@ onUnmounted(() => {
       @touchstart.passive="onTouchStart" @touchmove="onTouchMove"
       style="touch-action:none">
 
+      <!-- 图层 0：卫星底图（独立图层，CSS transform 驱动） -->
       <div class="map-layer" :style="layerStyle">
-        <!-- 卫星底图（GPU 加速优化） -->
         <img :src="`${BASE_URL}data/campus-satellite.jpg`" :width="IMG_W" :height="IMG_H"
           style="display:block;user-select:none;pointer-events:none;will-change:transform;transform:translateZ(0);backface-visibility:hidden"
           decoding="async" loading="lazy" draggable="false">
+      </div>
 
-        <!-- SVG 路线 + 标记全部在 map-layer 内，与卫星图共用 CSS transform -->
-        <svg :style="{ position:'absolute', top:0, left:0, width:IMG_W+'px', height:IMG_H+'px', overflow:'visible', pointerEvents:'none' }">
-          <g v-for="(line, i) in routeLines" :key="'l'+i">
-            <polyline
+      <!-- 图层 1：所有 overlay（SVG 路线 + 站点圆点 + 公交 + 用户 + 标签）
+           CSS 自定义属性 --scale/--panX/--panY 由 watchEffect 直接写入 DOM，
+           完全不经过 Vue 响应式系统。浏览器 CSS 引擎用 calc() 统一计算所有位置。 -->
+      <div ref="overlayLayer" class="overlay-layer">
+
+        <!-- SVG 路线：vector-effect 让线宽永远清晰不模糊 -->
+        <svg class="route-svg">
+          <g class="route-group">
+            <polyline v-for="(line, i) in routeLines" :key="'l'+i"
               :points="line.points" fill="none" :stroke="line.color"
-              :stroke-width="3.5 / scale" stroke-opacity="0.7"
-              :stroke-dasharray="line.dashed ? `${10/scale} ${6/scale}` : undefined"
-              stroke-linecap="round" stroke-linejoin="round" />
+              stroke-width="3.5" stroke-opacity="0.7"
+              :stroke-dasharray="line.dashed ? '10 6' : undefined"
+              stroke-linecap="round" stroke-linejoin="round"
+              vector-effect="non-scaling-stroke" />
           </g>
         </svg>
 
-        <!-- 站点圆点（在 map-layer 内，随底图缩放） -->
+        <!-- 站点圆点 -->
         <div v-for="(m, i) in stationMarkers" :key="'sd'+i"
-          :style="{
-            position: 'absolute', left: m.x + 'px', top: m.y + 'px',
-            transform: 'translate(-50%,-50%)',
-          }" @click.stop="selectStop(m.name)">
-          <div :style="{
-            width: `${8/scale}px`, height: `${8/scale}px`, borderRadius: '50%',
-            background: m.color, border: `${2/scale}px solid white`,
-            boxShadow: `0 ${1/scale}px ${2/scale}px rgba(0,0,0,0.3)`
-          }"></div>
+          :style="{ '--x': m.x, '--y': m.y }"
+          class="station-dot"
+          @click.stop="selectStop(m.name)">
+          <div class="station-dot-inner" :style="{ background: m.color }"></div>
         </div>
 
-        <div v-if="userPixel" :style="{
-          position: 'absolute', left: userPixel.x + 'px', top: userPixel.y + 'px',
-          transform: 'translate(-50%,-50%)', pointerEvents: 'none'
-        }">
-          <div :style="{width:`${16/scale}px`,height:`${16/scale}px`,borderRadius:'50%',background:'rgba(59,130,246,0.2)'}"></div>
-          <div :style="{width:`${10/scale}px`,height:`${10/scale}px`,borderRadius:'50%',background:'#3B82F6',border:`${3/scale}px solid white`,position:'absolute',top:`${3/scale}px`,left:`${3/scale}px`}"></div>
+        <!-- 用户蓝点 -->
+        <div v-if="userPixel"
+          :style="{ '--x': userPixel.x, '--y': userPixel.y }"
+          class="user-dot">
+          <div class="user-dot-outer"></div>
+          <div class="user-dot-inner"></div>
         </div>
 
-        <div v-for="b in busMarkers" :key="b.departureId" class="bus-marker"
-          :style="{
-            position: 'absolute', left: b.px + 'px', top: b.py + 'px',
-            transform: `translate(-50%,-50%) scale(${1/scale})`,
-            transformOrigin: 'center',
-          }"
+        <!-- 公交车图标 -->
+        <div v-for="b in busMarkers" :key="b.departureId"
+          :style="{ '--x': b.px, '--y': b.py }"
+          class="bus-marker"
           v-html="busIconHtml(b.routeKey, b.shiftName, b.heading)" />
+
+        <!-- 站点标签 -->
+        <template v-if="mapStore.showLabels">
+          <div v-for="(m, i) in stationMarkers" :key="'sl'+i"
+            :style="{ '--x': m.x, '--y': m.y }"
+            class="station-label"
+            @click.stop="selectStop(m.name)">
+            <div :style="{
+              background: m.color, borderRadius: '4px',
+              padding: '2px 6px', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1'
+            }">
+              <span class="station-label-text">{{ m.name }}</span>
+            </div>
+          </div>
+        </template>
+
       </div>
 
-      <!-- 站点标签（在 map-layer 外，屏幕空间定位，始终保持清晰锐利） -->
-      <div v-for="(m, i) in stationMarkers" :key="'sl'+i"
-        v-show="mapStore.showLabels"
-        :style="{
-          position: 'absolute', zIndex: 50,
-          left: (panX + m.x * scale) + 'px',
-          top: (panY + m.y * scale) + 'px',
-          transform: 'translate(-50%, calc(-100% - 5px))',
-          pointerEvents: 'auto'
-        }" @click.stop="selectStop(m.name)">
-        <div :style="{
-          background: m.color, borderRadius: '4px',
-          padding: '2px 6px',
-          whiteSpace: 'nowrap',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', lineHeight: '1'
-        }">
-          <span :style="{color:'white',fontSize:'10px',fontWeight:'600',fontFamily:'PingFang SC,Microsoft YaHei,sans-serif'}">{{ m.name }}</span>
+      <MapLegend />
+      <div class="map-controls">
+        <div v-if="isMapLost" class="locate-btn recenter-btn" @click="recenterMap">
+          <van-icon name="replay" size="20" />
+        </div>
+        <div class="locate-btn" @click="recenterOnUser">
+          <van-icon name="aim" size="20" />
         </div>
       </div>
-
-    <MapLegend />
-    <div class="map-controls">
-      <div v-if="isMapLost" class="locate-btn recenter-btn" @click="recenterMap">
-        <van-icon name="replay" size="20" />
-      </div>
-      <div class="locate-btn" @click="recenterOnUser">
-        <van-icon name="aim" size="20" />
-      </div>
+      <StopInfoPanel />
     </div>
-    <StopInfoPanel />
-  </div>
   </div>
 </template>
 
 <style scoped>
+/* ===== CSS @property 注册：让自定义属性在 calc() 中作为数值参与运算 ===== */
+@property --scale {
+  syntax: '<number>';
+  initial-value: 1;
+  inherits: true;
+}
+@property --panX {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: true;
+}
+@property --panY {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: true;
+}
+
 .map-page {
   position: relative; width: 100%; height: calc(100vh - 60px);
   overflow: hidden; background: #1a1a1a;
@@ -497,13 +496,96 @@ onUnmounted(() => {
   position: relative;
 }
 .map-viewport:active { cursor: grabbing; }
+
+/* ---- 卫星底图层 ---- */
 .map-layer {
   position: absolute; top: 0; left: 0;
   will-change: transform;
 }
-.bus-marker {
+
+/* ---- Overlay 层：所有非底图元素，CSS 自定义属性驱动定位 ---- */
+.overlay-layer {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
   pointer-events: none;
 }
+
+/* ---- SVG 路线 ---- */
+.route-svg {
+  position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.route-group {
+  transform: translate(calc(var(--panX) * 1px), calc(var(--panY) * 1px)) scale(var(--scale));
+  transform-origin: 0 0;
+}
+
+/* ---- 站点圆点（固定 8px，永远清晰） ---- */
+.station-dot {
+  position: absolute;
+  transform: translate(
+    calc(var(--x) * var(--scale) * 1px + var(--panX) * 1px),
+    calc(var(--y) * var(--scale) * 1px + var(--panY) * 1px)
+  ) translate(-50%, -50%);
+  pointer-events: auto; cursor: pointer;
+  z-index: 10;
+}
+.station-dot-inner {
+  width: 8px; height: 8px; border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* ---- 用户蓝点（固定大小，永远清晰） ---- */
+.user-dot {
+  position: absolute;
+  transform: translate(
+    calc(var(--x) * var(--scale) * 1px + var(--panX) * 1px),
+    calc(var(--y) * var(--scale) * 1px + var(--panY) * 1px)
+  ) translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 20;
+}
+.user-dot-outer {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(59,130,246,0.2);
+}
+.user-dot-inner {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #3B82F6;
+  border: 3px solid white;
+  position: absolute; top: 3px; left: 3px;
+}
+
+/* ---- 公交图标（固定大小，heading 由内联 HTML 处理） ---- */
+.bus-marker {
+  position: absolute;
+  transform: translate(
+    calc(var(--x) * var(--scale) * 1px + var(--panX) * 1px),
+    calc(var(--y) * var(--scale) * 1px + var(--panY) * 1px)
+  ) translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 15;
+}
+
+/* ---- 站点标签（固定 10px 字体，永远清晰） ---- */
+.station-label {
+  position: absolute;
+  transform: translate(
+    calc(var(--x) * var(--scale) * 1px + var(--panX) * 1px),
+    calc(var(--y) * var(--scale) * 1px + var(--panY) * 1px)
+  ) translate(-50%, calc(-100% - 5px));
+  pointer-events: auto; cursor: pointer;
+  z-index: 10;
+}
+.station-label-text {
+  color: white; font-size: 10px; font-weight: 600;
+  font-family: PingFang SC, Microsoft YaHei, sans-serif;
+}
+
+/* ---- 控件 ---- */
 .map-loading {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
