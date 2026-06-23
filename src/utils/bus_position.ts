@@ -7,11 +7,13 @@ type RoutePath = [number, number][]  // [[lng, lat], ...]
 
 /**
  * 找到路径中距离给定坐标最近的点索引（从 startFrom 之后开始搜索）
+ * maxSearch 限制搜索范围，避免环线上同一站点出现在路径两端时误匹配到远端
  */
-function findClosestPathIndex(path: RoutePath, lng: number, lat: number, startFrom: number = 0): number {
+function findClosestPathIndex(path: RoutePath, lng: number, lat: number, startFrom: number = 0, maxSearch?: number): number {
   let best = startFrom
   let bestDist = Infinity
-  for (let i = startFrom; i < path.length; i++) {
+  const end = maxSearch !== undefined ? Math.min(maxSearch, path.length) : path.length
+  for (let i = startFrom; i < end; i++) {
     const dlng = path[i][0] - lng
     const dlat = path[i][1] - lat
     const dist = dlng * dlng + dlat * dlat
@@ -163,7 +165,9 @@ export function computeActiveBusPositions(
       if (!coord) coord = stationMap.get(s.currentStop)
       if (coord) {
         const start = searchFrom < path.length ? searchFrom : 0
-        const idx = findClosestPathIndex(path, coord.lng, coord.lat, start)
+        // 限制搜索范围到 path 前半段，防止环线首尾同站误匹配到远端副本
+        const maxSearch = start + Math.ceil(path.length / 2)
+        const idx = findClosestPathIndex(path, coord.lng, coord.lat, start, maxSearch)
         stopPathIndices.push(idx)
         searchFrom = idx + 1 // 下一个站点从当前之后开始搜
       } else {
