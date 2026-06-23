@@ -62,6 +62,7 @@ const showNotice = ref(false)
 const selectedStop = ref<string | null>(null)
 const stopExpanded = ref(false)
 const showAllArrivals = ref(false)
+const showAllDeparting = ref(false)
 const expandedCards = ref<Set<string>>(new Set())
 const expandedSections = ref<Set<string>>(new Set())
 const nowTick = ref(0)  // 用于强制刷新
@@ -300,7 +301,7 @@ const stopArrivals = computed(() => {
 })
 
 const displayedArrivals = computed(() => {
-  return showAllArrivals.value ? stopArrivals.value : stopArrivals.value.slice(0, 10)
+  return showAllArrivals.value ? stopArrivals.value : stopArrivals.value.slice(0, 5)
 })
 
 // 默认视图：GPS 周边各站过站车次
@@ -467,8 +468,8 @@ const nearbyStopArrivals = computed(() => {
           @view-on-map="handleViewOnMap"
         />
       </div>
-      <div v-if="stopArrivals.length > 10" class="show-more-btn" @click="showAllArrivals = !showAllArrivals">
-        {{ showAllArrivals ? '收起 ▲' : `展开更多 ${stopArrivals.length - 10} 趟车次 ↓` }}
+      <div v-if="stopArrivals.length > 5" class="show-more-btn" @click="showAllArrivals = !showAllArrivals">
+        {{ showAllArrivals ? '收起 ▲' : `展开更多 ${stopArrivals.length - 5} 趟车次 ↓` }}
       </div>
     </div>
 
@@ -480,29 +481,34 @@ const nearbyStopArrivals = computed(() => {
 
     <div v-if="departingSoon.length > 0" class="section">
       <div class="section-title">即将发车</div>
-      <div v-for="item in departingSoon" :key="item.departure.recordId"
-        class="bus-card departing"
-        :class="{ expanded: expandedCards.has('departing-' + item.departure.recordId) }"
-        :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
-        <div class="bus-card-main" @click="toggleBusCard('departing-' + item.departure.recordId)">
-          <div class="bus-card-left">
-            <div class="route-col">
-              <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
-              <span class="bus-shift">{{ item.departure.shiftName }}</span>
+      <template v-for="(item, idx) in departingSoon" :key="item.departure.recordId">
+        <div v-if="idx < 5 || showAllDeparting"
+          class="bus-card departing"
+          :class="{ expanded: expandedCards.has('departing-' + item.departure.recordId) }"
+          :style="{ borderLeft: `3px solid ${routeBorderColor(item.departure.routeKey)}` }">
+          <div class="bus-card-main" @click="toggleBusCard('departing-' + item.departure.recordId)">
+            <div class="bus-card-left">
+              <div class="route-col">
+                <RouteBadge :route="item.departure.route" :dining="item.departure.routeKey === 'HX1_DINING'" />
+                <span class="bus-shift">{{ item.departure.shiftName }}</span>
+              </div>
+              <span class="bus-from" v-if="item.departure.isGaochaoDeparture">系统楼发车</span>
             </div>
-            <span class="bus-from" v-if="item.departure.isGaochaoDeparture">系统楼发车</span>
+            <div class="bus-card-right">
+              <div class="departure-time">{{ item.departure.departureTime }}</div>
+              <ETAIndicator :seconds-until="item.secondsUntil" type="departure" />
+            </div>
           </div>
-          <div class="bus-card-right">
-            <div class="departure-time">{{ item.departure.departureTime }}</div>
-            <ETAIndicator :seconds-until="item.secondsUntil" type="departure" />
-          </div>
+          <BusStopTimeline
+            v-if="expandedCards.has('departing-' + item.departure.recordId)"
+            :departure-id="item.departure.recordId"
+            :route-key="item.departure.routeKey"
+            @view-on-map="handleViewOnMap"
+          />
         </div>
-        <BusStopTimeline
-          v-if="expandedCards.has('departing-' + item.departure.recordId)"
-          :departure-id="item.departure.recordId"
-          :route-key="item.departure.routeKey"
-          @view-on-map="handleViewOnMap"
-        />
+      </template>
+      <div v-if="departingSoon.length > 5" class="show-more-btn" @click="showAllDeparting = !showAllDeparting">
+        {{ showAllDeparting ? '收起 ▲' : `展开更多 ${departingSoon.length - 5} 趟车次 ↓` }}
       </div>
     </div>
 
