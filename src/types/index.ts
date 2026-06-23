@@ -44,8 +44,6 @@ export interface RouteStop {
   prevStop: string
   currentStop: string
   distanceKm: number
-  baseSegmentSeconds: number
-  manualSegmentSeconds: number | null
   finalSegmentSeconds: number
   cumulativeSeconds: number
   isDepartureStop: boolean
