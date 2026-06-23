@@ -85,10 +85,18 @@ onUnmounted(() => {
             :route="(item as any).departure?.route"
             :dining="(item as any).departure?.routeKey === 'HX1_DINING'"
           />
-          <span class="panel-arrival-time">{{ (item as any).arrivalTime }}</span>
-          <ETAIndicator
-            :seconds-until="(item as any).secondsUntil"
-          />
+          <div class="panel-info">
+            <span class="panel-arrival-time">{{ (item as any).arrivalTime }}</span>
+            <ETAIndicator
+              :seconds-until="(item as any).secondsUntil"
+            />
+            <div class="panel-depart-note">
+              {{ (item as any).departure?.departureTime }} 发车 ·
+              <span :class="(item as any).departure?.departureMinutes * 60 <= secondsNow ? 'departed' : 'not-departed'">
+                {{ (item as any).departure?.departureMinutes * 60 <= secondsNow ? '已发车' : '未发车' }}
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -132,12 +140,25 @@ onUnmounted(() => {
   padding: 12px 0;
   border-bottom: 1px solid #F3F4F6;
 }
+.panel-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
 .panel-arrival-time {
   font-size: 16px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  flex: 1;
 }
+.panel-depart-note {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+.panel-depart-note .departed { color: #059669; }
+.panel-depart-note .not-departed { color: #DC2626; }
 
 .empty {
   text-align: center;
