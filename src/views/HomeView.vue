@@ -520,7 +520,6 @@ const nearbyStopArrivals = computed(() => {
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
 .walk-hint { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; }
 .bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; border-left: 3px solid transparent; }
-.bus-card.departing { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; }
 .bus-card.expanded { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .bus-card-main { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; }
 .bus-card-main:active { background: #F9FAFB; }
