@@ -34,8 +34,8 @@ export function useGeolocation() {
         // 模拟位置激活期间，忽略真实 GPS 回调
         if (locationStore.isActive) return
 
-        // 过滤低精度定位：accuracy > 50m 时跳过（避免到站检测误判）
-        if (position.coords.accuracy > 50) return
+        // 过滤极低精度定位（Wi-Fi 定位精度通常 20-200m，桌面 Chrome 约 100-400m）
+        if (position.coords.accuracy > 500) return
 
         // 浏览器 GPS 返回 WGS-84，站点/路线数据均为 WGS-84，直接存储
         mapStore.setUserLocation(
