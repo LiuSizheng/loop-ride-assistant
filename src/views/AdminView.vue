@@ -248,6 +248,14 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
         </div>
 
         <div class="chart-area">
+          <!-- 纵轴 -->
+          <div class="y-axis">
+            <span>{{ maxCount }}</span>
+            <span>{{ Math.ceil(maxCount / 2) }}</span>
+            <span>0</span>
+          </div>
+
+          <!-- 柱状图 -->
           <div v-if="chartType === 'bar'" class="bar-chart">
             <div v-for="d in chartData" :key="d.label" class="bar-col">
               <div class="bar" :style="{ height: (d.count / maxCount * 100) + '%' }">
@@ -256,7 +264,13 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
               <div class="bar-date">{{ d.label }}</div>
             </div>
           </div>
+
+          <!-- 折线图 -->
           <svg v-else class="line-chart" viewBox="0 0 600 160" preserveAspectRatio="none">
+            <!-- 水平网格线 -->
+            <line x1="0" y1="10" x2="600" y2="10" stroke="#E5E7EB" stroke-dasharray="4 2" />
+            <line x1="0" y1="80" x2="600" y2="80" stroke="#E5E7EB" stroke-dasharray="4 2" />
+            <!-- 折线 -->
             <polyline :points="chartData.map((d, i) => {
               const x = (i / Math.max(1, chartData.length - 1)) * 580 + 10
               const y = 150 - (d.count / maxCount * 140)
@@ -329,13 +343,15 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 .chart-toggle span { padding: 4px 12px; font-size: 13px; cursor: pointer; background: var(--color-card); color: var(--color-text-secondary); }
 .chart-toggle span.active { background: var(--color-primary); color: #fff; }
 
-.chart-area { background: var(--color-card); border-radius: 12px; padding: 16px 8px 0; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 200px; overflow: hidden; }
-.bar-chart { display: flex; align-items: flex-end; gap: 1px; height: 180px; }
+.chart-area { background: var(--color-card); border-radius: 12px; padding: 12px 8px 0; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 220px; display: flex; gap: 4px; }
+.y-axis { display: flex; flex-direction: column; justify-content: space-between; height: 180px; padding-bottom: 16px; font-size: 10px; color: #9CA3AF; text-align: right; min-width: 24px; }
+.y-axis span { line-height: 1; }
+.bar-chart { display: flex; align-items: flex-end; gap: 1px; height: 180px; flex: 1; }
 .bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
 .bar { width: 100%; max-width: 28px; background: var(--color-primary); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; transition: height 0.3s; }
 .bar-label { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: 8px; color: var(--color-text-secondary); white-space: nowrap; }
 .bar-date { font-size: 8px; color: #9CA3AF; margin-top: 2px; }
-.line-chart { width: 100%; height: 180px; }
+.line-chart { width: 100%; height: 180px; flex: 1; }
 
 .device-section { background: var(--color-card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
 .device-section h3 { font-size: 15px; margin-bottom: 12px; }
