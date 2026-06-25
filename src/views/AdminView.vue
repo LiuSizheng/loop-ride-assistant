@@ -97,7 +97,7 @@ async function loadChart() {
       result.push({ label: key, count: hours.get(key)?.size || 0 })
     }
     chartData.value = result
-  } else if (viewMode.value === 'total') {
+  } else if (viewMode.value === 'year' || viewMode.value === 'total') {
     // 所有历史月份
     const months: string[] = []
     for (const k of groups.keys()) months.push(k)
