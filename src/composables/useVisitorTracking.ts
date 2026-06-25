@@ -17,7 +17,11 @@ function getVisitorId(): string {
 function detectDeviceType(): string {
   const ua = navigator.userAgent.toLowerCase()
   if (/iphone|ipad|ipod/.test(ua)) return 'ios'
-  if (/android/.test(ua)) return 'android'
+  if (/android|harmonyos|huawei|honor|oppo|vivo|xiaomi|redmi|oneplus|samsung/.test(ua)) return 'android'
+  // 微信内置浏览器也属移动端
+  if (/micromessenger/.test(ua)) return 'android' // 微信基本只在手机上用
+  // 触摸屏 + 小屏幕 = 移动端
+  if ('ontouchstart' in window && window.innerWidth < 1024) return 'android'
   return 'desktop'
 }
 
