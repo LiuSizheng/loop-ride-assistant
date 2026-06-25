@@ -40,6 +40,12 @@ const router = createRouter({
       meta: { title: '关于' },
     },
     {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/views/AdminView.vue'),
+      meta: { title: '管理' },
+    },
+    {
       path: '/:pathMatch(.*)*',
       redirect: '/',
     },

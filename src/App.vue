@@ -10,11 +10,13 @@ import TimeOverride from '@/components/dev/TimeOverride.vue'
 import LocationOverride from '@/components/dev/LocationOverride.vue'
 
 import { useInstallPrompt } from '@/composables/useInstallPrompt'
+import { useVisitorTracking } from '@/composables/useVisitorTracking'
 
 const route = useRoute()
 const scheduleStore = useScheduleStore()
 const { isOnline } = useOnlineStatus()
 const { showPrompt, isIOS, dismiss, dismissForever } = useInstallPrompt()
+useVisitorTracking()
 
 // 调试工具开关：true 显示时间/位置模拟面板，false 隐藏
 const showDebugTools = false
