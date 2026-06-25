@@ -13,7 +13,7 @@ const ADMIN_PIN = '20250615'
 
 const loading = ref(true)
 const chartType = ref<'bar' | 'line'>('bar')
-const viewMode = ref<'day' | 'week' | 'month' | 'total'>('week')
+const viewMode = ref<'day' | 'week' | 'month' | 'year' | 'total'>('week')
 
 interface BarItem { label: string; count: number }
 interface VisitLog { date: string; time: string; vid: string; device: string; visits: number }
@@ -21,7 +21,7 @@ const chartData = ref<BarItem[]>([])
 const logData = ref<VisitLog[]>([])
 const maxCount = computed(() => Math.max(1, ...chartData.value.map(d => d.count)))
 
-const stats = ref({ dau: 0, wau: 0, mau: 0, total: 0 })
+const stats = ref({ dau: 0, wau: 0, mau: 0, yau: 0, total: 0 })
 const deviceStats = ref({ ios: 0, android: 0, desktop: 0 })
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
@@ -41,16 +41,29 @@ async function loadStats() {
   const today = new Date().toISOString().slice(0, 10)
   const w = dateOffset(-6)
   const m = dateOffset(-29)
+  const y = dateOffset(-364)
 
-  const allQ = await supabase.from('visits').select('visitor_id')
-  const allData = allQ.data || []
+  const allQ = await supabase.from('visits').select('visitor_id, visited_at')
+  const allData = (allQ.data || []) as Array<{ visitor_id: string; visited_at: string }>
 
-  const allIds = new Set(allData.map(r => r.visitor_id))
-  const dauIds = new Set(allData.filter(r => r.visited_at >= today).map(r => r.visitor_id))
-  const wauIds = new Set(allData.filter(r => r.visited_at >= w).map(r => r.visitor_id))
-  const mauIds = new Set(allData.filter(r => r.visited_at >= m).map(r => r.visitor_id))
+  const allIds = new Set<string>()
+  const dauIds = new Set<string>()
+  const wauIds = new Set<string>()
+  const mauIds = new Set<string>()
+  const yauIds = new Set<string>()
 
-  stats.value = { dau: dauIds.size, wau: wauIds.size, mau: mauIds.size, total: allIds.size }
+  for (const r of allData) {
+    allIds.add(r.visitor_id)
+    if (r.visited_at >= today) dauIds.add(r.visitor_id)
+    if (r.visited_at >= w) wauIds.add(r.visitor_id)
+    if (r.visited_at >= m) mauIds.add(r.visitor_id)
+    if (r.visited_at >= y) yauIds.add(r.visitor_id)
+  }
+
+  stats.value = {
+    dau: dauIds.size, wau: wauIds.size, mau: mauIds.size,
+    yau: yauIds.size, total: allIds.size,
+  }
 }
 
 async function loadChart() {
@@ -66,7 +79,7 @@ async function loadChart() {
       const key = h + ':00'
       if (!hours.has(key)) hours.set(key, new Set())
       hours.get(key)!.add(r.visitor_id)
-    } else if (viewMode.value === 'total') {
+    } else if (viewMode.value === 'year' || viewMode.value === 'total') {
       // 按月份聚合全部历史
       const mon = r.visited_at.slice(0, 7)
       if (!groups.has(mon)) groups.set(mon, new Set())
@@ -148,6 +161,7 @@ function rangeStart(): string {
   if (viewMode.value === 'day') return dateOffset(-1)
   if (viewMode.value === 'week') return dateOffset(-6)
   if (viewMode.value === 'month') return dateOffset(-29)
+  if (viewMode.value === 'year') return dateOffset(-364)
   return '2000-01-01' // total: all time
 }
 
@@ -205,7 +219,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
       <van-loading v-if="loading" size="24" style="margin:40px auto;display:block" />
 
       <template v-else>
-        <!-- 4卡片 -->
+        <!-- 5卡片 -->
         <div class="stats-grid">
           <div class="stat-card" :class="{ active: viewMode === 'day' }" @click="switchMode('day')">
             <div class="stat-num">{{ stats.dau }}</div><div class="stat-label">今日活跃</div>
@@ -216,14 +230,17 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
           <div class="stat-card" :class="{ active: viewMode === 'month' }" @click="switchMode('month')">
             <div class="stat-num">{{ stats.mau }}</div><div class="stat-label">近30天活跃</div>
           </div>
-          <div class="stat-card" :class="{ active: viewMode === 'total' }" @click="switchMode('total')">
-            <div class="stat-num">{{ stats.total }}</div><div class="stat-label">历史总用户</div>
+          <div class="stat-card" :class="{ active: viewMode === 'year' }" @click="switchMode('year')">
+            <div class="stat-num">{{ stats.yau }}</div><div class="stat-label">近1年活跃</div>
           </div>
         </div>
+        <div class="stats-grid" style="grid-template-columns:1fr"><div class="stat-card" :class="{ active: viewMode === 'total' }" @click="switchMode('total')">
+          <div class="stat-num">{{ stats.total }}</div><div class="stat-label">历史总用户</div>
+        </div></div>
 
         <!-- 图表 -->
         <div class="chart-toolbar">
-          <h3>{{ viewMode === 'day' ? '今日每小时' : viewMode === 'week' ? '近7天每日' : viewMode === 'month' ? '近30天每日' : '全部历史每月' }} 活跃用户</h3>
+          <h3>{{ viewMode === 'day' ? '今日每小时' : viewMode === 'week' ? '近7天每日' : viewMode === 'month' ? '近30天每日' : viewMode === 'year' ? '近12个月每月' : '全部历史每月' }} 活跃用户</h3>
           <div class="chart-toggle">
             <span :class="{ active: chartType === 'bar' }" @click="chartType = 'bar'">柱状</span>
             <span :class="{ active: chartType === 'line' }" @click="chartType = 'line'">折线</span>
