@@ -9,7 +9,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 const authed = ref(false)
 const pinInput = ref('')
 const pinError = ref(false)
-const ADMIN_PIN = '20250615'
+const ADMIN_PIN = '250030'
 
 const loading = ref(true)
 const chartType = ref<'bar' | 'line'>('bar')
@@ -186,7 +186,7 @@ function generateLabels(): Array<{ label: string; full: string }> {
 function switchMode(mode: typeof viewMode.value) { viewMode.value = mode; loadAll() }
 
 function logout() {
-  authed.value = false; sessionStorage.removeItem('admin_authed')
+  authed.value = false; localStorage.removeItem('admin_authed')
   if (refreshTimer) clearInterval(refreshTimer)
 }
 
