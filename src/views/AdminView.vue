@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
@@ -20,6 +20,34 @@ interface VisitLog { date: string; time: string; vid: string; device: string; vi
 const chartData = ref<BarItem[]>([])
 const logData = ref<VisitLog[]>([])
 const maxCount = computed(() => Math.max(1, ...chartData.value.map(d => d.count)))
+
+const chartAreaRef = ref<HTMLDivElement>()
+const BAR_WIDTH = 32  // 每根柱子/数据点的最小像素宽
+
+// 图表最小宽度，保证柱子不挤在一起
+const chartMinWidth = computed(() => {
+  const n = chartData.value.length
+  if (n === 0) return 300
+  return Math.max(300, n * BAR_WIDTH + 16)
+})
+
+// SVG viewBox 动态宽度
+const svgW = computed(() => chartMinWidth.value)
+const svgViewBox = computed(() => `0 0 ${svgW.value} 160`)
+const plotW = computed(() => svgW.value - 20)  // 左右各 10px padding
+
+// 默认滚动到 7:00（日视图），其他视图滚动到最左
+function scrollChartToDefault() {
+  nextTick(() => {
+    if (!chartAreaRef.value) return
+    if (viewMode.value === 'day') {
+      // 每小时 BAR_WIDTH px，滚动使 7:00 小时位于左侧
+      chartAreaRef.value.scrollLeft = 7 * BAR_WIDTH
+    } else {
+      chartAreaRef.value.scrollLeft = 0
+    }
+  })
+}
 
 const stats = ref({ dau: 0, wau: 0, mau: 0, yau: 0, total: 0 })
 const deviceStats = ref({ ios: 0, android: 0, desktop: 0 })
@@ -183,7 +211,7 @@ function generateLabels(): Array<{ label: string; full: string }> {
   return result
 }
 
-function switchMode(mode: typeof viewMode.value) { viewMode.value = mode; loadAll() }
+function switchMode(mode: typeof viewMode.value) { viewMode.value = mode; loadAll().then(scrollChartToDefault) }
 
 function logout() {
   authed.value = false; localStorage.removeItem('admin_authed')
@@ -247,8 +275,8 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
           </div>
         </div>
 
-        <div class="chart-area">
-          <!-- 纵轴 -->
+        <div class="chart-area" ref="chartAreaRef">
+          <!-- 纵轴（sticky 固定左侧） -->
           <div class="y-axis">
             <span>{{ maxCount }}</span>
             <span>{{ Math.ceil(maxCount / 2) }}</span>
@@ -256,7 +284,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
           </div>
 
           <!-- 柱状图 -->
-          <div v-if="chartType === 'bar'" class="bar-chart">
+          <div v-if="chartType === 'bar'" class="bar-chart" :style="{ minWidth: chartMinWidth + 'px' }">
             <div v-for="d in chartData" :key="d.label" class="bar-col">
               <div class="bar" :style="{ height: (d.count / maxCount * 100) + '%' }">
                 <span v-if="d.count > 0" class="bar-label">{{ d.count }}</span>
@@ -266,18 +294,19 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
           </div>
 
           <!-- 折线图 -->
-          <svg v-else class="line-chart" viewBox="0 0 600 160" preserveAspectRatio="none">
+          <svg v-else class="line-chart" :viewBox="svgViewBox" :style="{ minWidth: chartMinWidth + 'px' }">
             <!-- 水平网格线 -->
-            <line x1="0" y1="10" x2="600" y2="10" stroke="#E5E7EB" stroke-dasharray="4 2" />
-            <line x1="0" y1="80" x2="600" y2="80" stroke="#E5E7EB" stroke-dasharray="4 2" />
+            <line :x1="10" y1="10" :x2="plotW + 10" y2="10" stroke="#E5E7EB" stroke-dasharray="4 2" />
+            <line :x1="10" y1="80" :x2="plotW + 10" y2="80" stroke="#E5E7EB" stroke-dasharray="4 2" />
             <!-- 折线 -->
             <polyline :points="chartData.map((d, i) => {
-              const x = (i / Math.max(1, chartData.length - 1)) * 580 + 10
+              const n = Math.max(1, chartData.length - 1)
+              const x = (i / n) * plotW + 10
               const y = 150 - (d.count / maxCount * 140)
               return x + ',' + y
             }).join(' ')" fill="none" stroke="#1A56DB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             <template v-for="(d, i) in chartData" :key="'d' + i">
-              <circle v-if="d.count > 0" :cx="(i / Math.max(1, chartData.length - 1)) * 580 + 10" :cy="150 - (d.count / maxCount * 140)" r="3" fill="#1A56DB" />
+              <circle v-if="d.count > 0" :cx="(i / Math.max(1, chartData.length - 1)) * plotW + 10" :cy="150 - (d.count / maxCount * 140)" r="3" fill="#1A56DB" />
             </template>
           </svg>
         </div>
@@ -343,15 +372,14 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 .chart-toggle span { padding: 4px 12px; font-size: 13px; cursor: pointer; background: var(--color-card); color: var(--color-text-secondary); }
 .chart-toggle span.active { background: var(--color-primary); color: #fff; }
 
-.chart-area { background: var(--color-card); border-radius: 12px; padding: 12px 8px 0; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 220px; display: flex; gap: 4px; }
-.y-axis { display: flex; flex-direction: column; justify-content: space-between; height: 180px; padding-bottom: 16px; font-size: 10px; color: #9CA3AF; text-align: right; min-width: 24px; }
-.y-axis span { line-height: 1; }
-.bar-chart { display: flex; align-items: flex-end; gap: 1px; height: 180px; flex: 1; }
-.bar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
-.bar { width: 100%; max-width: 28px; background: var(--color-primary); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; transition: height 0.3s; }
+.chart-area { background: var(--color-card); border-radius: 12px; padding: 12px 8px 0; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); height: 220px; display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
+.y-axis { display: flex; flex-direction: column; justify-content: space-between; height: 180px; padding-bottom: 16px; font-size: 10px; color: #9CA3AF; text-align: right; min-width: 24px; flex-shrink: 0; position: sticky; left: 0; background: var(--color-card); z-index: 2; padding-right: 4px; }
+.bar-chart { display: flex; align-items: flex-end; gap: 1px; height: 180px; flex-shrink: 0; }
+.bar-col { flex: 1; min-width: 28px; max-width: 48px; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+.bar { width: 100%; max-width: 32px; background: var(--color-primary); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; transition: height 0.3s; }
 .bar-label { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: 8px; color: var(--color-text-secondary); white-space: nowrap; }
-.bar-date { font-size: 8px; color: #9CA3AF; margin-top: 2px; }
-.line-chart { width: 100%; height: 180px; flex: 1; }
+.bar-date { font-size: 8px; color: #9CA3AF; margin-top: 2px; white-space: nowrap; }
+.line-chart { height: 180px; flex-shrink: 0; }
 
 .device-section { background: var(--color-card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
 .device-section h3 { font-size: 15px; margin-bottom: 12px; }
