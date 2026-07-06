@@ -267,7 +267,7 @@ const deviceTypeLabel: Record<string, string> = { ios: '🍎', android: '🤖', 
 
 onMounted(() => {
   if (sessionStorage.getItem('admin_authed') === ADMIN_PIN) {
-    authed.value = true; loadAll()
+    authed.value = true; loadAll().then(scrollChartToDefault)
     refreshTimer = setInterval(loadAll, 60000)
   }
 })
