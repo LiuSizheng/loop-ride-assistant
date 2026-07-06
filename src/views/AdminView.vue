@@ -94,7 +94,7 @@ const firstSeen = new Map<string, string>()
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
 function handleLogin() {
-  if (pinInput.value === ADMIN_PIN) { authed.value = true; pinError.value = false; loadAll() }
+  if (pinInput.value === ADMIN_PIN) { authed.value = true; pinError.value = false; loadAll().then(scrollChartToDefault) }
   else { pinError.value = true }
 }
 
