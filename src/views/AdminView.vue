@@ -76,7 +76,7 @@ const chartMinWidth = computed(() => {
 
 // SVG viewBox 动态宽度
 const svgW = computed(() => chartMinWidth.value)
-const svgViewBox = computed(() => `0 0 ${svgW.value} 160`)
+const svgViewBox = computed(() => `0 0 ${svgW.value} 180`)
 const plotW = computed(() => svgW.value - 20)  // 左右各 10px padding
 
 // 默认滚动位置：日视图→7:00，月/年/总→最右侧（最新），其他→最左
@@ -357,18 +357,18 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
             <!-- 折线图 -->
             <svg v-else class="line-chart" :viewBox="svgViewBox" :style="{ minWidth: chartMinWidth + 'px' }">
               <!-- 水平网格线 -->
-              <line :x1="10" y1="10" :x2="plotW + 10" y2="10" stroke="#E5E7EB" stroke-dasharray="4 2" />
-              <line :x1="10" y1="80" :x2="plotW + 10" y2="80" stroke="#E5E7EB" stroke-dasharray="4 2" />
+              <line :x1="10" y1="30" :x2="plotW + 10" y2="30" stroke="#E5E7EB" stroke-dasharray="4 2" />
+              <line :x1="10" y1="100" :x2="plotW + 10" y2="100" stroke="#E5E7EB" stroke-dasharray="4 2" />
               <!-- 折线 -->
               <polyline :points="chartData.map((d, i) => {
                 const n = Math.max(1, chartData.length - 1)
                 const x = (i / n) * plotW + 10
-                const y = 150 - (d.count / maxCount * 140)
+                const y = 170 - (d.count / maxCount * 140)
                 return x + ',' + y
               }).join(' ')" fill="none" stroke="#1A56DB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               <template v-for="(d, i) in chartData" :key="'d' + i">
-                <circle v-if="d.count > 0" :cx="(i / Math.max(1, chartData.length - 1)) * plotW + 10" :cy="150 - (d.count / maxCount * 140)" r="3" fill="#1A56DB" />
-                <text v-if="d.count > 0" :x="(i / Math.max(1, chartData.length - 1)) * plotW + 10" :y="150 - (d.count / maxCount * 140) - 8" text-anchor="middle" font-size="10" fill="#374151" font-weight="600">{{ d.count }}</text>
+                <circle v-if="d.count > 0" :cx="(i / Math.max(1, chartData.length - 1)) * plotW + 10" :cy="170 - (d.count / maxCount * 140)" r="3" fill="#1A56DB" />
+                <text v-if="d.count > 0" :x="(i / Math.max(1, chartData.length - 1)) * plotW + 10" :y="170 - (d.count / maxCount * 140) - 10" text-anchor="middle" font-size="10" fill="#374151" font-weight="600">{{ d.count }}</text>
               </template>
             </svg>
           </div>
