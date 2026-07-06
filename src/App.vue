@@ -37,7 +37,9 @@ onMounted(() => {
   <div class="app-container">
     <router-view v-slot="{ Component }">
       <transition name="fade" mode="out-in">
-        <component :is="Component" />
+        <keep-alive :include="['HomeView', 'MapView', 'ScheduleView', 'StopQueryView', 'UploadView']">
+          <component :is="Component" />
+        </keep-alive>
       </transition>
     </router-view>
   </div>

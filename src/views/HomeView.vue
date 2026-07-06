@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, computed, ref } from 'vue'
+import { onMounted, onUnmounted, onActivated, onDeactivated, computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useNextBus } from '@/composables/useNextBus'
 import { useGeolocation } from '@/composables/useGeolocation'
@@ -31,6 +31,7 @@ interface StopArrivalItem {
   departed?: boolean
   walkSeconds?: number
   walkLabel?: string
+  walkWarning?: boolean
   isOriginDeparture?: boolean
   boardSec?: number
   boardLabel?: string
@@ -83,6 +84,15 @@ const userManuallySelected = ref(false)
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
+function startTimer() {
+  if (refreshTimer) return
+  refreshTimer = setInterval(() => { refresh(); nowTick.value++ }, 1000)
+}
+
+function stopTimer() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+}
+
 function initSortOrder() {
   try {
     const saved = JSON.parse(localStorage.getItem('stop_click_freq') || '{}')
@@ -96,11 +106,21 @@ function initSortOrder() {
 
 onMounted(() => {
   initSortOrder()
-  refreshTimer = setInterval(() => { refresh(); nowTick.value++ }, 1000)
+  startTimer()
+})
+
+onActivated(() => {
+  refresh()
+  nowTick.value++
+  startTimer()
+})
+
+onDeactivated(() => {
+  stopTimer()
 })
 
 onUnmounted(() => {
-  if (refreshTimer) clearInterval(refreshTimer)
+  stopTimer()
 })
 
 function recordClick(stopName: string) {
@@ -250,8 +270,8 @@ const stopArrivals = computed(() => {
         const secondsUntilCandidate = Math.round(candidatePred.arrivalMinutes * 60 - secondsNow.value)
         const secondsUntilDest = Math.round(destPred.arrivalMinutes * 60 - secondsNow.value)
 
-        // 步行赶不上这趟车 → 跳过（仅当车未发时检查）
-        if (secondsUntilCandidate > 0 && walkSeconds > secondsUntilCandidate) continue
+        // 步行可能赶不上 → 标记警告但不隐藏（车次信息对用户仍有参考价值）
+        const walkWarning = secondsUntilCandidate > 0 && walkSeconds > secondsUntilCandidate
         // 目的地到站超过 1 小时 → 跳过
         if (secondsUntilDest > 3600) continue
         // 已过站超过 1 分钟 → 跳过
@@ -269,6 +289,7 @@ const stopArrivals = computed(() => {
           destStop,
           walkSeconds,
           walkLabel: formatWalkTime(walkSeconds),
+          walkWarning,
           isOriginDeparture,
           boardSec: secondsUntilCandidate,
           boardLabel: label,
@@ -338,13 +359,14 @@ const nearbyStopArrivals = computed(() => {
       if (!dep) continue
       const secondsUntil = Math.round(p.arrivalMinutes * 60 - secondsNow.value)
       if (secondsUntil < -300 || secondsUntil > 3600) continue
-      if (secondsUntil > 0 && walkSeconds > secondsUntil) continue // 步行赶不上（仅当车未过站时检查）
+      const walkWarning = secondsUntil > 0 && walkSeconds > secondsUntil
       const { label, status } = arrivalCountdown(secondsUntil)
       arrivals.push({
         departure: dep,
         stopName,
         walkSeconds,
         walkLabel,
+        walkWarning,
         secondsUntil,
         label,
         status,
@@ -426,7 +448,7 @@ const nearbyStopArrivals = computed(() => {
               <span v-else class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
             </div>
             <div class="bus-card-right">
-              <div class="walk-hint">{{ item.walkLabel }}到「{{ item.stopName }}」</div>
+              <div class="walk-hint">{{ item.walkLabel }}到「{{ item.stopName }}」<van-icon v-if="item.walkWarning" name="warning-o" size="11" color="#F59E0B" class="walk-warn-icon" /></div>
               <div class="arrival-time">{{ item.arrivalTime }}</div>
               <ETAIndicator :seconds-until="item.secondsUntil!" type="arrival" />
             </div>
@@ -464,7 +486,7 @@ const nearbyStopArrivals = computed(() => {
           <span v-else class="depart-tag" :class="item.departed ? 'gone' : 'wait'">{{ item.departed ? '已发车' : '未发车' }}</span>
         </div>
         <div class="bus-card-right" v-if="item.candidateStop">
-          <div class="boarding-info">{{ item.walkLabel }}到「{{ item.candidateStop }}」</div>
+          <div class="boarding-info">{{ item.walkLabel }}到「{{ item.candidateStop }}」<van-icon v-if="item.walkWarning" name="warning-o" size="11" color="#F59E0B" class="walk-warn-icon" /></div>
           <ETAIndicator
             :seconds-until="item.boardSec!"
             :type="item.isOriginDeparture ? 'departure' : 'arrival'"
@@ -556,6 +578,7 @@ const nearbyStopArrivals = computed(() => {
 .gps-card { display: flex; align-items: center; gap: 10px; padding: 14px; background: #EFF6FF; border-radius: 10px; font-size: 14px; color: var(--color-primary); margin-bottom: 16px; }
 .empty-hint { color: var(--color-text-secondary); font-size: 13px; text-align: center; padding: 24px; }
 .walk-hint { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 2px; }
+.walk-warn-icon { margin-left: 3px; vertical-align: -1px; cursor: help; }
 .bus-card { background: var(--color-card); border-radius: 10px; margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); overflow: hidden; border-left: 3px solid transparent; }
 .bus-card.expanded { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
 .bus-card-main { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; cursor: pointer; user-select: none; }

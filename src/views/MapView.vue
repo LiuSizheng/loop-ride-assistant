@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, watchEffect } from 'vue'
+import { ref, computed, onMounted, onUnmounted, onActivated, onDeactivated, watch, watchEffect } from 'vue'
 import { useRoute } from 'vue-router'
 import { useScheduleStore } from '@/stores/schedule'
 import { useMapStore } from '@/stores/map'
@@ -355,6 +355,18 @@ function initMapView() {
 
 onMounted(() => {
   initMapView()
+})
+
+onActivated(() => {
+  // 从其他 tab 切回来时恢复动画
+  if (animFrameId === null && scheduleStore.isDataLoaded) {
+    animFrameId = requestAnimationFrame(animate)
+  }
+})
+
+onDeactivated(() => {
+  // 切到其他 tab 时暂停动画，省电
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null }
 })
 
 // 核心性能优化：
