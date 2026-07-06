@@ -21,11 +21,39 @@ const chartData = ref<BarItem[]>([])
 const logData = ref<VisitLog[]>([])
 const maxCount = computed(() => Math.max(1, ...chartData.value.map(d => d.count)))
 
-// 日均活跃（仅非"今日"视图有意义）
+// 管理面板上线日期（此前无埋点数据）
+const LAUNCH_DATE = new Date('2026-06-25')
+
+// 日均活跃：各视图计算方式不同
+// - 日视图：不显示（每小时统计，日均无意义）
+// - 周视图：7天总和 / 7
+// - 月视图：总和 / 实际上线天数（排除上线前为0的天）
+// - 年/总：总独立用户 / 已上线天数
 const dailyAvg = computed(() => {
   if (chartData.value.length === 0) return 0
-  const total = chartData.value.reduce((sum, d) => sum + d.count, 0)
-  return Math.round(total / chartData.value.length)
+  const today = new Date()
+  const daysSinceLaunch = Math.max(1, Math.ceil((today.getTime() - LAUNCH_DATE.getTime()) / 86400000))
+
+  if (viewMode.value === 'day') return 0
+
+  if (viewMode.value === 'week') {
+    const total = chartData.value.reduce((sum, d) => sum + d.count, 0)
+    return Math.round(total / 7)
+  }
+
+  if (viewMode.value === 'month') {
+    const total = chartData.value.reduce((sum, d) => sum + d.count, 0)
+    const effectiveDays = Math.min(30, daysSinceLaunch)
+    return Math.round(total / effectiveDays)
+  }
+
+  if (viewMode.value === 'year') {
+    const effectiveDays = Math.min(365, daysSinceLaunch)
+    return Math.round(stats.value.yau / effectiveDays)
+  }
+
+  // total
+  return Math.round(stats.value.total / daysSinceLaunch)
 })
 
 const chartScrollRef = ref<HTMLDivElement>()
