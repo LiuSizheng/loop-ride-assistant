@@ -86,7 +86,14 @@ function scrollChartToDefault() {
 }
 
 const stats = ref({ dau: 0, wau: 0, mau: 0, yau: 0, total: 0 })
+const newUsers = ref({ dauNew: 0, wauNew: 0, mauNew: 0, yauNew: 0 })
+const lifecycle = ref({ churn7: 0, churn30: 0, returned: 0 })
 const deviceStats = ref({ ios: 0, android: 0, desktop: 0 })
+
+// 每个用户的首次到访日期（用于判断"新增"）
+const firstSeen = new Map<string, string>()
+// 每个用户的最近到访日期（用于判断"流失/回流"）
+const lastSeen = new Map<string, string>()
 
 let refreshTimer: ReturnType<typeof setInterval> | null = null
 
@@ -97,7 +104,7 @@ function handleLogin() {
 
 async function loadAll() {
   loading.value = true
-  await Promise.all([loadStats(), loadChart(), loadDevices(), loadLog()])
+  await Promise.all([loadStats(), loadChart(), loadDevices(), loadLog(), loadLifecycle()])
   loading.value = false
 }
 
@@ -107,7 +114,7 @@ async function loadStats() {
   const m = dateOffset(-29)
   const y = dateOffset(-364)
 
-  const allQ = await supabase.from('visits').select('visitor_id, visited_at')
+  const allQ = await supabase.from('visits').select('visitor_id, visited_at').order('visited_at')
   const allData = (allQ.data || []) as Array<{ visitor_id: string; visited_at: string }>
 
   const allIds = new Set<string>()
@@ -115,18 +122,46 @@ async function loadStats() {
   const wauIds = new Set<string>()
   const mauIds = new Set<string>()
   const yauIds = new Set<string>()
+  const dauNewIds = new Set<string>()
+  const wauNewIds = new Set<string>()
+  const mauNewIds = new Set<string>()
+  const yauNewIds = new Set<string>()
+
+  // 构建 firstSeen / lastSeen（全量扫描一次）
+  firstSeen.clear()
+  lastSeen.clear()
+  for (const r of allData) {
+    if (!firstSeen.has(r.visitor_id)) firstSeen.set(r.visitor_id, r.visited_at)
+    lastSeen.set(r.visitor_id, r.visited_at)
+  }
 
   for (const r of allData) {
     allIds.add(r.visitor_id)
-    if (r.visited_at >= today) dauIds.add(r.visitor_id)
-    if (r.visited_at >= w) wauIds.add(r.visitor_id)
-    if (r.visited_at >= m) mauIds.add(r.visitor_id)
-    if (r.visited_at >= y) yauIds.add(r.visitor_id)
+    if (r.visited_at >= today) {
+      dauIds.add(r.visitor_id)
+      if (firstSeen.get(r.visitor_id) === today) dauNewIds.add(r.visitor_id)
+    }
+    if (r.visited_at >= w) {
+      wauIds.add(r.visitor_id)
+      if ((firstSeen.get(r.visitor_id) || '') >= w) wauNewIds.add(r.visitor_id)
+    }
+    if (r.visited_at >= m) {
+      mauIds.add(r.visitor_id)
+      if ((firstSeen.get(r.visitor_id) || '') >= m) mauNewIds.add(r.visitor_id)
+    }
+    if (r.visited_at >= y) {
+      yauIds.add(r.visitor_id)
+      if ((firstSeen.get(r.visitor_id) || '') >= y) yauNewIds.add(r.visitor_id)
+    }
   }
 
   stats.value = {
     dau: dauIds.size, wau: wauIds.size, mau: mauIds.size,
     yau: yauIds.size, total: allIds.size,
+  }
+  newUsers.value = {
+    dauNew: dauNewIds.size, wauNew: wauNewIds.size,
+    mauNew: mauNewIds.size, yauNew: yauNewIds.size,
   }
 }
 
@@ -218,6 +253,43 @@ async function loadLog() {
   }))
 }
 
+async function loadLifecycle() {
+  // 需要知道每个用户的倒数第二次访问来判断"回流"
+  // lastSeen 已从 loadStats 构建；这里再查一次获取倒数第二次
+  const { data } = await supabase.from('visits').select('visitor_id, visited_at').order('visited_at')
+  const allVisits = (data || []) as Array<{ visitor_id: string; visited_at: string }>
+
+  // 每个用户的最后两次访问日期
+  const lastTwo = new Map<string, { last: string; prev: string }>()
+  for (const r of allVisits) {
+    const cur = lastTwo.get(r.visitor_id)
+    if (!cur) {
+      lastTwo.set(r.visitor_id, { last: r.visited_at, prev: '' })
+    } else {
+      lastTwo.set(r.visitor_id, { last: r.visited_at, prev: cur.last })
+    }
+  }
+
+  const today = new Date().toISOString().slice(0, 10)
+  const d7 = dateOffset(-6)
+  const d14 = dateOffset(-13)
+  const d30 = dateOffset(-29)
+
+  let churn7 = 0, churn30 = 0, returned = 0
+
+  for (const [vid, two] of lastTwo) {
+    // 流失7天：最近访问在 7~14 天前（说明近 7 天没来了）
+    if (two.last >= d14 && two.last < d7) churn7++
+    // 流失30天：最近访问在 30 天以前
+    if (two.last < d30) churn30++
+    // 回流：倒数第二次访问在 14 天前，但最近 7 天又有访问
+    //      即：prev < d14（曾停用 14 天+）且 last >= d7（最近回来了）
+    if (two.prev && two.prev < d14 && two.last >= d7) returned++
+  }
+
+  lifecycle.value = { churn7, churn30, returned }
+}
+
 function dateOffset(days: number): string {
   return new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
 }
@@ -284,24 +356,47 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
       <van-loading v-if="loading" size="24" style="margin:40px auto;display:block" />
 
       <template v-else>
-        <!-- 5卡片 -->
+        <!-- 5卡片：活跃 + 新增 -->
         <div class="stats-grid">
           <div class="stat-card" :class="{ active: viewMode === 'day' }" @click="switchMode('day')">
             <div class="stat-num">{{ stats.dau }}</div><div class="stat-label">今日活跃</div>
+            <div class="stat-new" v-if="newUsers.dauNew > 0">+{{ newUsers.dauNew }} 新增</div>
           </div>
           <div class="stat-card" :class="{ active: viewMode === 'week' }" @click="switchMode('week')">
             <div class="stat-num">{{ stats.wau }}</div><div class="stat-label">近7天活跃</div>
+            <div class="stat-new" v-if="newUsers.wauNew > 0">+{{ newUsers.wauNew }} 新增</div>
           </div>
           <div class="stat-card" :class="{ active: viewMode === 'month' }" @click="switchMode('month')">
             <div class="stat-num">{{ stats.mau }}</div><div class="stat-label">近30天活跃</div>
+            <div class="stat-new" v-if="newUsers.mauNew > 0">+{{ newUsers.mauNew }} 新增</div>
           </div>
           <div class="stat-card" :class="{ active: viewMode === 'year' }" @click="switchMode('year')">
             <div class="stat-num">{{ stats.yau }}</div><div class="stat-label">近1年活跃</div>
+            <div class="stat-new" v-if="newUsers.yauNew > 0">+{{ newUsers.yauNew }} 新增</div>
           </div>
         </div>
         <div class="stats-grid" style="grid-template-columns:1fr"><div class="stat-card" :class="{ active: viewMode === 'total' }" @click="switchMode('total')">
           <div class="stat-num">{{ stats.total }}</div><div class="stat-label">历史总用户</div>
         </div></div>
+
+        <!-- 用户生命周期 -->
+        <div class="lifecycle-section" v-if="lifecycle.churn7 > 0 || lifecycle.returned > 0">
+          <h3>用户健康度</h3>
+          <div class="lifecycle-grid">
+            <div class="lifecycle-item churn">
+              <span class="lifecycle-num">{{ lifecycle.churn7 }}</span>
+              <span class="lifecycle-label">流失 (7天未访)</span>
+            </div>
+            <div class="lifecycle-item churn30">
+              <span class="lifecycle-num">{{ lifecycle.churn30 }}</span>
+              <span class="lifecycle-label">流失 (30天未访)</span>
+            </div>
+            <div class="lifecycle-item returned">
+              <span class="lifecycle-num">{{ lifecycle.returned }}</span>
+              <span class="lifecycle-label">回流 (停14天后回归)</span>
+            </div>
+          </div>
+        </div>
 
         <!-- 图表 -->
         <div class="chart-toolbar">
@@ -409,6 +504,20 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 .stat-card.active { border-color: var(--color-primary); background: #EFF6FF; }
 .stat-num { font-size: 28px; font-weight: 700; color: var(--color-primary); }
 .stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+.stat-new { font-size: 10px; color: #10B981; margin-top: 1px; font-weight: 500; }
+
+.lifecycle-section { background: var(--color-card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 20px; }
+.lifecycle-section h3 { font-size: 15px; margin-bottom: 12px; }
+.lifecycle-grid { display: flex; gap: 12px; }
+.lifecycle-item { flex: 1; text-align: center; padding: 10px 8px; border-radius: 8px; }
+.lifecycle-item.churn { background: #FEF2F2; }
+.lifecycle-item.churn30 { background: #FFF7ED; }
+.lifecycle-item.returned { background: #ECFDF5; }
+.lifecycle-num { font-size: 22px; font-weight: 700; display: block; }
+.lifecycle-item.churn .lifecycle-num { color: #DC2626; }
+.lifecycle-item.churn30 .lifecycle-num { color: #EA580C; }
+.lifecycle-item.returned .lifecycle-num { color: #059669; }
+.lifecycle-label { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; display: block; }
 
 .chart-toolbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .chart-toolbar h3 { font-size: 15px; }
