@@ -24,17 +24,24 @@ const maxCount = computed(() => Math.max(1, ...chartData.value.map(d => d.count)
 // 管理面板上线日期（此前无埋点数据）
 const LAUNCH_DATE = new Date('2026-06-25')
 
-// 日均活跃：各视图计算方式不同
-// - 日视图：不显示（每小时统计，日均无意义）
+// 日均/月均活跃
+// - 日视图：不显示
 // - 周视图：7天总和 / 7
-// - 月视图：总和 / 实际上线天数（排除上线前为0的天）
-// - 年/总：总独立用户 / 已上线天数
-const dailyAvg = computed(() => {
+// - 月视图：30天总和 / 实际上线天数（排除上线前为0的天）
+// - 年视图：各月独立用户之和 / 月数（月均）
+// - 全部历史：不显示
+const avgLabel = computed(() => {
+  if (viewMode.value === 'year') return '月均'
+  if (viewMode.value === 'total') return ''
+  if (viewMode.value === 'day') return ''
+  return '日均'
+})
+const avgValue = computed(() => {
   if (chartData.value.length === 0) return 0
   const today = new Date()
   const daysSinceLaunch = Math.max(1, Math.ceil((today.getTime() - LAUNCH_DATE.getTime()) / 86400000))
 
-  if (viewMode.value === 'day') return 0
+  if (viewMode.value === 'day' || viewMode.value === 'total') return 0
 
   if (viewMode.value === 'week') {
     const total = chartData.value.reduce((sum, d) => sum + d.count, 0)
@@ -48,12 +55,12 @@ const dailyAvg = computed(() => {
   }
 
   if (viewMode.value === 'year') {
-    const effectiveDays = Math.min(365, daysSinceLaunch)
-    return Math.round(stats.value.yau / effectiveDays)
+    // 月均 = 各月独立用户之和 / 月数
+    const total = chartData.value.reduce((sum, d) => sum + d.count, 0)
+    return Math.round(total / chartData.value.length)
   }
 
-  // total
-  return Math.round(stats.value.total / daysSinceLaunch)
+  return 0
 })
 
 const chartScrollRef = ref<HTMLDivElement>()
@@ -315,7 +322,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
         <div class="chart-toolbar">
           <div>
             <h3>{{ viewMode === 'day' ? '今日每小时 访问次数' : viewMode === 'week' ? '近7天每日 活跃用户' : viewMode === 'month' ? '近30天每日 活跃用户' : viewMode === 'year' ? '近12个月每月 活跃用户' : '全部历史每月 活跃用户' }}</h3>
-            <span v-if="viewMode !== 'day'" class="daily-avg">日均 {{ dailyAvg }} 人</span>
+            <span v-if="avgValue > 0" class="daily-avg">{{ avgLabel }} {{ avgValue }} 人</span>
           </div>
           <div class="chart-toggle">
             <span :class="{ active: chartType === 'bar' }" @click="chartType = 'bar'">柱状</span>
