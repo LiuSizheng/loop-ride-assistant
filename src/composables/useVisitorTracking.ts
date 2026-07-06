@@ -27,9 +27,7 @@ function detectDeviceType(): string {
 
 async function recordVisit(visitorId: string) {
   const today = new Date().toISOString().slice(0, 10)
-  const lastVisit = localStorage.getItem('last_visit_date')
-  if (lastVisit === today) return
-
+  // 每次访问都记录（小时分布需要访问次数），日活通过 DISTINCT 去重
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
     const { error } = await supabase.from('visits').insert({
@@ -37,7 +35,11 @@ async function recordVisit(visitorId: string) {
       visited_at: today,
       device_type: detectDeviceType(),
     })
-    if (!error) localStorage.setItem('last_visit_date', today)
+    // 只在当天首次成功写入时更新 localStorage 标记（用于首页避免重复提示，不影响记录）
+    const lastVisit = localStorage.getItem('last_visit_date')
+    if (!error && lastVisit !== today) {
+      localStorage.setItem('last_visit_date', today)
+    }
   } catch { /* 静默 */ }
 }
 

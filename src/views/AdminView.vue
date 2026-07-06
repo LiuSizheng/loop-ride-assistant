@@ -134,21 +134,22 @@ async function loadChart() {
   const { data } = await supabase.from('visits').select('visited_at, visitor_id, created_at')
     .gte('visited_at', rangeStart()).order('visited_at')
 
-  const groups = new Map<string, Set<string>>()
-  const hours = new Map<string, Set<string>>()
+  const groups = new Map<string, Set<string>>()       // 天/月 → Set<visitor_id>（去重）
+  const hours = new Map<string, number>()              // 小时 → 访问次数（不去重）
 
   for (const r of (data || [])) {
     if (viewMode.value === 'day') {
+      // 日视图：统计每小时的访问次数（不去重，同一人多次访问都算）
       const h = new Date(r.created_at).getHours().toString().padStart(2, '0')
       const key = h + ':00'
-      if (!hours.has(key)) hours.set(key, new Set())
-      hours.get(key)!.add(r.visitor_id)
+      hours.set(key, (hours.get(key) || 0) + 1)
     } else if (viewMode.value === 'year' || viewMode.value === 'total') {
-      // 按月份聚合全部历史
+      // 年/总视图：统计每月的独立用户数（去重）
       const mon = r.visited_at.slice(0, 7)
       if (!groups.has(mon)) groups.set(mon, new Set())
       groups.get(mon)!.add(r.visitor_id)
     } else {
+      // 周/月视图：统计每天的独立用户数（去重）
       if (!groups.has(r.visited_at)) groups.set(r.visited_at, new Set())
       groups.get(r.visited_at)!.add(r.visitor_id)
     }
@@ -158,7 +159,7 @@ async function loadChart() {
     const result: BarItem[] = []
     for (let h = 0; h < 24; h++) {
       const key = String(h).padStart(2, '0') + ':00'
-      result.push({ label: key, count: hours.get(key)?.size || 0 })
+      result.push({ label: key, count: hours.get(key) || 0 })
     }
     chartData.value = result
   } else if (viewMode.value === 'year' || viewMode.value === 'total') {
@@ -305,7 +306,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
         <!-- 图表 -->
         <div class="chart-toolbar">
           <div>
-            <h3>{{ viewMode === 'day' ? '今日每小时' : viewMode === 'week' ? '近7天每日' : viewMode === 'month' ? '近30天每日' : viewMode === 'year' ? '近12个月每月' : '全部历史每月' }} 活跃用户</h3>
+            <h3>{{ viewMode === 'day' ? '今日每小时 访问次数' : viewMode === 'week' ? '近7天每日 活跃用户' : viewMode === 'month' ? '近30天每日 活跃用户' : viewMode === 'year' ? '近12个月每月 活跃用户' : '全部历史每月 活跃用户' }}</h3>
             <span v-if="viewMode !== 'day'" class="daily-avg">日均 {{ dailyAvg }} 人</span>
           </div>
           <div class="chart-toggle">
