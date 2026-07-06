@@ -13,13 +13,20 @@ const ADMIN_PIN = '250030'
 
 const loading = ref(true)
 const chartType = ref<'bar' | 'line'>('bar')
-const viewMode = ref<'day' | 'week' | 'month' | 'year' | 'total'>('week')
+const viewMode = ref<'day' | 'week' | 'month' | 'year' | 'total'>('day')
 
 interface BarItem { label: string; count: number }
 interface VisitLog { date: string; time: string; vid: string; device: string; visits: number }
 const chartData = ref<BarItem[]>([])
 const logData = ref<VisitLog[]>([])
 const maxCount = computed(() => Math.max(1, ...chartData.value.map(d => d.count)))
+
+// 日均活跃（仅非"今日"视图有意义）
+const dailyAvg = computed(() => {
+  if (chartData.value.length === 0) return 0
+  const total = chartData.value.reduce((sum, d) => sum + d.count, 0)
+  return Math.round(total / chartData.value.length)
+})
 
 const chartScrollRef = ref<HTMLDivElement>()
 const BAR_WIDTH = 32  // 每根柱子/数据点的最小像素宽
@@ -36,12 +43,14 @@ const svgW = computed(() => chartMinWidth.value)
 const svgViewBox = computed(() => `0 0 ${svgW.value} 160`)
 const plotW = computed(() => svgW.value - 20)  // 左右各 10px padding
 
-// 默认滚动到 7:00（日视图），其他视图滚动到最左
+// 默认滚动位置：日视图→7:00，月/年/总→最右侧（最新），其他→最左
 function scrollChartToDefault() {
   nextTick(() => {
     if (!chartScrollRef.value) return
     if (viewMode.value === 'day') {
       chartScrollRef.value.scrollLeft = 7 * BAR_WIDTH
+    } else if (viewMode.value === 'month' || viewMode.value === 'year' || viewMode.value === 'total') {
+      chartScrollRef.value.scrollLeft = chartScrollRef.value.scrollWidth
     } else {
       chartScrollRef.value.scrollLeft = 0
     }
@@ -195,10 +204,10 @@ function rangeStart(): string {
 function generateLabels(): Array<{ label: string; full: string }> {
   const result: Array<{ label: string; full: string }> = []
   if (viewMode.value === 'week') {
-    const days = ['日', '一', '二', '三', '四', '五', '六']
     for (let i = 6; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86400000)
-      result.push({ label: days[d.getDay()], full: d.toISOString().slice(0, 10) })
+      const label = (d.getMonth() + 1) + '/' + d.getDate()  // "7/1", "7/2"
+      result.push({ label, full: d.toISOString().slice(0, 10) })
     }
   } else if (viewMode.value === 'month') {
     for (let i = 29; i >= 0; i--) {
@@ -267,7 +276,10 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 
         <!-- 图表 -->
         <div class="chart-toolbar">
-          <h3>{{ viewMode === 'day' ? '今日每小时' : viewMode === 'week' ? '近7天每日' : viewMode === 'month' ? '近30天每日' : viewMode === 'year' ? '近12个月每月' : '全部历史每月' }} 活跃用户</h3>
+          <div>
+            <h3>{{ viewMode === 'day' ? '今日每小时' : viewMode === 'week' ? '近7天每日' : viewMode === 'month' ? '近30天每日' : viewMode === 'year' ? '近12个月每月' : '全部历史每月' }} 活跃用户</h3>
+            <span v-if="viewMode !== 'day'" class="daily-avg">日均 {{ dailyAvg }} 人</span>
+          </div>
           <div class="chart-toggle">
             <span :class="{ active: chartType === 'bar' }" @click="chartType = 'bar'">柱状</span>
             <span :class="{ active: chartType === 'line' }" @click="chartType = 'line'">折线</span>
@@ -308,6 +320,7 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
               }).join(' ')" fill="none" stroke="#1A56DB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
               <template v-for="(d, i) in chartData" :key="'d' + i">
                 <circle v-if="d.count > 0" :cx="(i / Math.max(1, chartData.length - 1)) * plotW + 10" :cy="150 - (d.count / maxCount * 140)" r="3" fill="#1A56DB" />
+                <text v-if="d.count > 0" :x="(i / Math.max(1, chartData.length - 1)) * plotW + 10" :y="150 - (d.count / maxCount * 140) - 8" text-anchor="middle" font-size="10" fill="#374151" font-weight="600">{{ d.count }}</text>
               </template>
             </svg>
           </div>
@@ -368,8 +381,9 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 .stat-num { font-size: 28px; font-weight: 700; color: var(--color-primary); }
 .stat-label { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
 
-.chart-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.chart-toolbar { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .chart-toolbar h3 { font-size: 15px; }
+.daily-avg { font-size: 12px; color: var(--color-primary); font-weight: 600; display: block; margin-top: 2px; }
 .chart-toggle { display: flex; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
 .chart-toggle span { padding: 4px 12px; font-size: 13px; cursor: pointer; background: var(--color-card); color: var(--color-text-secondary); }
 .chart-toggle span.active { background: var(--color-primary); color: #fff; }
