@@ -19,6 +19,7 @@ interface BarItem { label: string; count: number }
 interface VisitLog { date: string; time: string; vid: string; device: string; visits: number }
 const chartData = ref<BarItem[]>([])
 const logData = ref<VisitLog[]>([])
+const logDate = ref(new Date().toISOString().slice(0, 10))  // 默认今天
 const maxCount = computed(() => Math.max(1, ...chartData.value.map(d => d.count)))
 
 // 管理面板上线日期（此前无埋点数据）
@@ -216,11 +217,14 @@ async function loadDevices() {
 async function loadLog() {
   const { data } = await supabase.from('visits')
     .select('visitor_id, visited_at, created_at, device_type')
-    .order('created_at', { ascending: false }).limit(200)
+    .eq('visited_at', logDate.value)
+    .order('created_at', { ascending: false })
 
-  // Group by visitor_id to count visits
+  // 同时查询该用户的总访问次数
+  const allVisits = await supabase.from('visits')
+    .select('visitor_id')
   const userVisits = new Map<string, number>()
-  for (const r of (data || [])) {
+  for (const r of (allVisits.data || [])) {
     userVisits.set(r.visitor_id, (userVisits.get(r.visitor_id) || 0) + 1)
   }
 
@@ -389,11 +393,19 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 
         <!-- 访问日志 -->
         <div class="log-section">
-          <h3>访问日志（最近200条）</h3>
+          <div class="log-header-row">
+            <h3>访问日志</h3>
+            <div class="log-date-picker">
+              <button class="log-date-btn" @click="logDate = dateOffset(0); loadLog()">今天</button>
+              <button class="log-date-btn" @click="logDate = dateOffset(-1); loadLog()">昨天</button>
+              <input type="date" v-model="logDate" @change="loadLog" class="log-date-input" />
+            </div>
+          </div>
           <div class="log-table">
             <div class="log-header">
               <span>日期</span><span>时间</span><span>设备ID</span><span>设备</span><span>总次数</span>
             </div>
+            <div v-if="logData.length === 0" class="log-empty">当天暂无访问记录</div>
             <div v-for="(l, i) in logData" :key="i" class="log-row">
               <span>{{ l.date }}</span><span>{{ l.time }}</span><span class="vid">{{ l.vid }}</span>
               <span>{{ deviceTypeLabel[l.device] || '💻' }}</span><span class="vc">{{ l.visits }}</span>
@@ -452,10 +464,18 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 .device-legend { display: flex; gap: 16px; font-size: 12px; color: var(--color-text-secondary); }
 
 .log-section { background: var(--color-card); border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.log-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.log-header-row h3 { font-size: 15px; }
+.log-date-picker { display: flex; align-items: center; gap: 6px; }
+.log-date-btn { padding: 4px 10px; font-size: 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-card); color: var(--color-text-secondary); cursor: pointer; }
+.log-date-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.log-date-input { padding: 3px 6px; font-size: 12px; border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text); background: var(--color-card); outline: none; width: 130px; }
+.log-date-input:focus { border-color: var(--color-primary); }
 .log-section h3 { font-size: 15px; margin-bottom: 12px; }
 .log-table { font-size: 12px; }
 .log-header { display: grid; grid-template-columns: 1fr 1fr 1fr 0.6fr 0.6fr; gap: 4px; font-weight: 600; color: var(--color-text); padding-bottom: 8px; border-bottom: 1px solid var(--color-border); margin-bottom: 4px; }
 .log-row { display: grid; grid-template-columns: 1fr 1fr 1fr 0.6fr 0.6fr; gap: 4px; padding: 4px 0; color: var(--color-text-secondary); border-bottom: 1px solid #F3F4F6; }
 .log-row .vid { font-family: monospace; font-size: 10px; }
 .log-row .vc { text-align: center; font-weight: 600; color: var(--color-primary); }
+.log-empty { text-align: center; padding: 24px; font-size: 13px; color: var(--color-text-secondary); }
 </style>
