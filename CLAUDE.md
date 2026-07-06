@@ -13,45 +13,67 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **UI 组件**：Vant 4（van-tabs, van-radio-group, van-button 等）
 - **地图**：静态卫星底图（ESRI World Imagery 瓦片拼接，JPEG ~6MB）+ SVG 路线/站点叠加层，零 API 调用
 - **数据库**：Supabase（measurements 表，存储用户乘车记录）
-- **部署**：GitHub Pages（`docs/` 目录），通过 `npm run deploy` 构建并复制
+- **部署**：GitHub Pages（`docs/` 目录），`npm run deploy` → commit → push master。直接推 master 即可（无需 dev-time-sim 分支）
+
+## 关键代码文件速查
+
+| 文件 | 职责 |
+|------|------|
+| `src/views/HomeView.vue` | 首页：附近站列表、目的地搜索、即将发车、折叠展开 |
+| `src/views/MapView.vue` | 地图：CSS calc 定位的 overlay 图层架构 |
+| `src/views/UploadView.vue` | 手动记录 + 历史记录（自动记录 Tab 已隐藏） |
+| `src/views/AdminView.vue` | 管理面板：用户统计图表 |
+| `src/components/map/StopInfoPanel.vue` | 地图点站弹出的到站面板（实时读秒） |
+| `src/components/common/BusStopTimeline.vue` | 车次站点时间线下拉组件 |
+| `src/composables/useNextBus.ts` | 首页到站车次计算逻辑 |
+| `src/composables/useGeolocation.ts` | GPS 定位（精度过滤 500m） |
+| `src/composables/useVisitorTracking.ts` | 匿名访问埋点（每设备每天一次） |
+| `src/utils/bus_position.ts` | 公交实时位置推算 + 路径匹配（maxSearch 防绕回） |
+| `src/utils/countdown.ts` | 倒计时格式化（已到站/已过站/xx分xx秒） |
+| `src/types/index.ts` | 全部 TypeScript 类型定义 |
+| `vite.config.ts` | Vite 配置（含 basicSsl 插件） |
 - **PWA**：vite-plugin-pwa，workbox generateSW 模式
 - **坐标系**：GCJ-02 ↔ WGS-84 转换（卫星瓦片用 WGS-84，站点数据用 GCJ-02）
 
 ## 已实现的功能
 
 ### 首页（HomeView）
-- 基于 GPS 定位自动推荐最近 3 个站点（200m 内）的到站车次
-- 站点选择器：按使用频次排序，支持搜索
+- GPS 定位后默认展示附近 200m 内所有站点（最多 3 个）的到站车次分组列表
+- **不会自动选中最近站点**（移除了 `nearestStop` watcher 的自动选择），用户手动点选站点后切换为目的地模式
+- 站点选择器：按使用频次排序（`sortOrder` 仅在刷新时从 localStorage 加载，避免点击后实时跳位），支持搜索
+- 默认收起显示前 5 个站点，点"更多"展开
+- 每个附近站点/目的地/即将发车列表默认显示前 5 趟车次，超过可点"展开更多"
 - 多起点搜索：选目的地后从最近 3 个站点搜索可乘线路，含步行时间
-- 车次卡片可展开查看完整站点时间线（BusStopTimeline）
-- 首页公告栏：提示"仅供参考、鼓励实测、自动记录不完善"
-- 首页底部有「使用反馈」问卷链接（问卷星）
+- 车次卡片可展开查看完整站点时间线（BusStopTimeline），**"即将发车"横条也支持展开**
+- 首页公告栏：`线络试运行…如方便可在记录页手动记录到站时间`，右侧显示蓝色「详情 ›」可点击查看完整说明
+- 首页容器宽度：max-width 640px（原 480px）
 - 调试工具（时间覆写/定位覆写）默认隐藏（`showDebugTools = false`）
 
 ### 行程规划（ScheduleView）
 - Tab 1：输入出发站、到达站、到达期限，查询可乘车次
 - Tab 2：总时刻表，按线路/班次展示所有发车记录
-- 默认出发站=研究生宿舍楼，到达站=系统楼
-- 环线起终点同站问题已修复（destIdx 从 originIdx 之后搜索）
 
-### 站点查询（StopQueryView）
-- 选择站点查看经过该站的所有车次到站预测
-
-### 地图（MapView）
-- 静态卫星底图（ESRI 瓦片拼接 JPEG）+ SVG 路线折线和站点标记叠加层
-- CSS transform 实现平移缩放（双指缩放以手指中心为基准，滚轮以光标为中心）
-- 动态最小缩放比例：根据屏幕尺寸自适应，手机上可缩到看全图
-- 实时公交车位置动画（基于发车时刻和站间秒数推算）
-- 公交车图标带班次编号角标
-- 点击站点弹出到站信息面板（StopInfoPanel）
-- 从首页车次卡片可跳转聚焦到对应车辆
-- 定位按钮（用户 GPS 位置蓝点）+ 回中按钮（地图拖丢时恢复）
+### 地图（MapView）— 架构已重大重构
+- **图层分离架构**：
+  - **Layer 0（map-layer）**：仅含卫星底图 `<img>`，CSS `transform: translate + scale` 驱动
+  - **Layer 1（overlay-layer）**：SVG 路线、站点圆点、公交图标、用户蓝点、站点标签全部在此层
+    - 定位方式：CSS 自定义属性 `--x`/`--y` + `calc(var(--x) * var(--scale) * 1px + var(--panX) * 1px)` 
+    - `--scale`/`--panX`/`--panY` 由 `watchEffect` 直接写入 DOM（仅 3 次 `setProperty`），完全绕过 Vue 响应式
+    - 所有元素固定像素大小，不随缩放变化，永不模糊
+  - **CSS `@property`** 注册 `--scale`/`--panX`/`--panY` 为 `<number>` 类型，确保 `calc()` 正确计算
+- **SVG 路线**：`vector-effect="non-scaling-stroke"` + 固定 `stroke-width="3.5"`，线宽永远清晰
+- **公交位置计算**：`computeActiveBusPositions()` 基于发车时间和 `cumulativeSeconds` 插值，`requestAnimationFrame` 驱动
+- **环线首尾同站路径匹配修复**：`findClosestPathIndex()` 新增 `maxSearch` 参数，限制搜索范围为路径前半段，防止首发站误匹配到路径远端的同名回程站
+- 点击站点弹出 StopInfoPanel，**实时读秒倒计时**（`nowTick` + `setInterval` 1秒），显示发车时间 + 发车状态（已发车绿/未发车红）
+- **环线起终点同站特殊处理**：地图上点站时保留 `isReturnStop`（回程到站正常显示），但首页过滤 `isReturnStop`（避免与"即将发车"重复）
+- 定位按钮 + 回中按钮
+- **桌面定位修复**：精度过滤从 50m 放宽到 500m（桌面 Wi-Fi 定位精度 100-400m），vite 配置 `@vitejs/plugin-basic-ssl` 支持 HTTPS（非 localhost 需要 HTTPS 才能用 Geolocation API）
 
 ### 记录上传（UploadView）
-- Tab 1 手动记录：选线路、选上车站、逐站按计时按钮记录段耗时
-- Tab 2 自动记录：GPS 自动检测到站（30m 内 3s）、离开检测（50m 外 10s）、自动提交
-- Tab 3 我的记录：查看/撤销历史记录
-- 数据上传至 Supabase measurements 表
+- Tab 1 手动记录：选线路、输入昵称、选上车站、逐站按计时按钮记录段耗时
+  - 线路选项：环1、环2、环3、**环3系统发**（HX3_GAOCHAO）、就餐
+- Tab 2 我的记录：查看/撤销历史记录
+- **自动记录 Tab 已隐藏**（前端 UI 移除，代码保留）
 
 ### 关于页（AboutView）
 - 项目介绍、数据说明、使用提示、注意事项
@@ -68,7 +90,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|
 | `departures.json` | 所有发车记录（每条含 recordId, route, routeKey, departureTime, departureStation, isGaochaoDeparture, driver, vehicleNo 等） |
 | `arrival_predictions.json` | 预计算的到站预测（每条含 departureId, stopName, stopSeq, arrivalTime, arrivalMinutes, isDepartureStop, isReturnStop 等） |
-| `route_params.json` | 各路线站间秒数配置（含 finalSegmentSeconds, cumulativeSeconds） |
+| `route_params.json` | 各路线站间秒数配置（含 finalSegmentSeconds, cumulativeSeconds, distanceKm）。**已移除 baseSegmentSeconds/manualSegmentSeconds 字段**，finalSegmentSeconds 为最终采用值 |
 | `route_stops.json` | 各路线站点坐标（含 lat, lng） |
 | `stations.json` | 所有站点字典（含 name, lat, lng, serviceRoutes） |
 | `route_paths.json` | 各路线折线坐标（用于地图绘制和离开检测） |
@@ -125,8 +147,10 @@ MapView.vue
 
 **定位功能**：使用浏览器原生 `navigator.geolocation`，**不调用任何第三方 API**。GPS 返回 WGS-84，经 `wgs84ToGcj02()` 转换后用于地图定位。
 
-**已删除的文件**：
+**已废弃/删除的文件**：
 - `src/utils/amap.ts` — 高德 SDK 加载器（已无引用）
+- `src/utils/geo.ts` 中 GCJ-02 转换函数 — 已废弃，全部使用 WGS-84
+- `src/components/common/AutoRecordPanel.vue` — UI 已隐藏（`UploadView.vue` 中不再引用）
 
 ### Excel 中关键工作表
 
@@ -181,9 +205,9 @@ MapView.vue
 ### 前端 Store 结构
 
 - `scheduleStore`：加载 JSON 数据，提供 departures, predictions, stations, routePatterns, routeStops, routePaths
-- `mapStore`：地图状态，visibleRoutes(Set), showLabels, userLat/userLng, busPositions
-- `uploadStore`：手动/自动记录上传，nickname, recordedSegments, history
-- `autoRecordStore`：自动记录状态机（idle→active→completed），GPS 到站检测、离开检测
+- `mapStore`：地图状态，visibleRoutes(Set), showLabels, userLat/userLng, busPositions, selectedStop
+- `uploadStore`：手动记录上传，nickname, recordedSegments, segmentSeconds, history, submit/undo/deleteRecord
+- `autoRecordStore`：自动记录状态机（代码保留，UI 已隐藏）
 
 ### 关键类型（src/types/index.ts）
 
@@ -197,13 +221,37 @@ MapView.vue
 
 `measurements` 表：id, user_id(昵称), route, shift, depart_time, date, segments(JSON: [{from, to, seconds}]), created_at
 
+`visits` 表：id, visitor_id(TEXT), visited_at(DATE), device_type(TEXT), created_at(TIMESTAMPTZ)
+- 匿名访问统计，每设备每天仅记录一次（localStorage UUID 去重）
+- device_type: 'ios' | 'android' | 'desktop'（通过 UA + touch 检测）
+- RLS 策略：anon 可 INSERT/SELECT，无需登录
+
+### 管理面板（AdminView）
+- 访问路径：`/#/admin`，密码 `250030`（localStorage 持久记住）
+- 5 维度卡片：今日/近7天/近30天/近1年/历史总用户
+- 点击卡片切换对应图表（日→24小时、周→7天、月→30天、年→12个月、总→全部历史月）
+- 柱状图/折线图切换，带纵轴刻度和水平网格线
+- 设备分布：iOS / Android / 桌面端占比条形图
+- 访问日志表格：最近 200 条（日期/时间/设备ID/设备类型/累计次数）
+- 每分钟自动刷新
+
+### 数据库记录修正历史（2026-06-23）
+对 Supabase `measurements` 表 21 条有效记录执行了集中修正：
+- **站名修正**：环线1路/就餐专线 "高超楼"→"系统楼"（7条）、环线3路 "教勤连"→"网球场"（4条）
+- **首发站修正**：环线3路 GAOCHAO 记录 "高超楼→理学院"→"系统楼→理学院"（2条）
+- **时间拆分**：环线3路 "激光所→高超楼" 按预估时间比 **105:28（79%:21%）** 拆为两段（4条）
+- **垃圾删除**：2 条段耗时异常记录（1~4s）已删除
+
 ## 环线起终点同站的特殊处理
 
-所有 5 条路线都是环线（起点=终点），因此：
-- 研究生宿舍楼和高超楼作为起终点站时，同一 departureId 会有两条预测记录：`isDepartureStop`(stopSeq=1) 和 `isReturnStop`(stopSeq=N)
-- 展示"到站预测"时必须同时过滤 `isDepartureStop` 和 `isReturnStop`
-- 行程规划搜索时 destIdx 必须从 originIdx 之后搜索（`findIndex((p,i) => i > originIdx && ...)`）
-- 多起点搜索需要用 `seenDepartureIds` Set 去重，防止同一车次重复展示
+所有 5 条路线都是环线（起点=终点），同一 departureId 会有两条预测记录：`isDepartureStop`(stopSeq=1) 和 `isReturnStop`(stopSeq=N)。
+
+**差异化处理（重要）：**
+- **首页（HomeView）**：同时过滤 `isDepartureStop` 和 `isReturnStop`。用户身在起终点站时，`isReturnStop` 的回程到站和"即将发车"重复，且用户不能上车——需等下一班发车。
+- **地图（StopInfoPanel）**：仅过滤 `isDepartureStop`，保留 `isReturnStop`。用户点站点只想看哪些车会经过，回程到站也是有效信息。
+- **useNextBus（首页附近车次列表）**：过滤两者，避免同一班车在"附近到站"中出现两次。
+- 行程规划搜索时 destIdx 必须从 originIdx 之后搜索
+- 多起点搜索用 `seenDepartureIds` Set 去重
 
 ## 查询下一班车逻辑
 
@@ -428,23 +476,14 @@ git checkout dev-time-sim
 
 ## 开发交互日志摘要
 
-项目经过 15 轮关键对话完成：
+项目经过 20 轮关键对话完成：
 
-1. 识别环线1路图片
-2. 修正夜班名称，识别环线2路/3路
-3. 补入推测时间，识别周末时刻
-4. 生成第一版完整 Excel
-5. 环线1路打钩车次标注为系统发车
-6. 统一线路名和日期口径
-7. 生成含预测到站的 Excel
-8. 环线1路打钩车次改走就餐专线
-9. 修复 Excel 表格对象问题
-10. 生成秒级可校准版
-11. 生成本 Markdown 日志
-12. 开发 Vue 3 PWA 小程序（首页、地图、记录上传）
-13. 实现自动记录功能（GPS 到站检测、离开检测、自动提交）
-14. 静态卫星地图替换高德 API（ESRI 瓦片拼接 + SVG 叠加层，零 API 调用）
-15. 扩大卫星底图范围（北3km+南3km+西2km+东2km），优化缩放交互
+1-15. （略，见上方原始日志）
+16. **地图性能重构**：CSS custom properties + calc() 替代 Vue 响应式定位，3 次 DOM 写入驱动所有 overlay 元素；SVG vector-effect 保清晰；修复环线首尾同站公交"狂奔"bug
+17. **首页体验优化**：附近站点视图（移除 GPS 自动单选）、三列表统一折叠 5 条、即将发车展开时间线、站点排序冻结修复、容器加宽 640px
+18. **数据库修正**：Supabase measurements 表 15 条记录站名修正 + 时间拆分 + 2 条垃圾删除；visits 表建表（匿名访问统计）
+19. **管理面板**：`/admin` 密码保护，日/周/月/年/总五维度活跃用户图表（柱状/折线切换），设备分布，访问日志，每分钟自动刷新
+20. **细节完善**：StopInfoPanel 实时读秒 + 发车状态显示；手动记录增加 HX3_GAOCHAO；自动记录隐藏；公告栏更新；桌面定位修复；环线起终点同站差异化处理
 
 关键决策：
 - 系统工程学院发车统一按高超楼处理
@@ -457,12 +496,17 @@ git checkout dev-time-sim
 ## 关键注意事项
 
 1. 不要随意修改原始发车时刻
-2. 系统工程学院发车统一按高超楼发车处理
+2. 系统工程学院发车统一按**系统楼**处理（原"高超楼发车"已改名为"系统楼发车"）
 3. 环线1路打钩车次走就餐专线，不走普通环线1路
 4. 环线1路仅工作日运行
 5. 工作日环线2路 17:10 和 21:30 是推测待确认
 6. 预测到站时间是估算结果
-7. 所有路线都是环线，起终点同站需要特殊处理（见上文）
-8. 卫星底图使用 WGS-84 坐标系，站点数据使用 GCJ-02 坐标系，需要互相转换
-9. 导出 Excel 时不要使用内置表格对象，避免 `/xl/tables/table*.xml` 修复提示
-10. `TimeOverride` 时间覆写悬浮窗已隐藏（`v-if="false"`），调试时改为 `true` 即可恢复
+7. 所有路线都是环线，起终点同站需要特殊处理：首页过滤 isReturnStop，地图点站保留 isReturnStop
+8. 卫星底图使用 WGS-84，站点数据使用 WGS-84（已废弃 GCJ-02）
+9. `showDebugTools = false`，调试时改为 `true` 恢复时间和定位覆写面板
+10. 地图 overlay 层使用 CSS `@property` + `calc()` 定位，修改时注意不要引入 Vue 响应式依赖 `scale`/`panX`/`panY`
+11. `route_params.json` 中仅有 `finalSegmentSeconds` 和 `cumulativeSeconds`，无 `baseSegmentSeconds`
+12. 管理面板密码 `250030`，访问 `/#/admin`
+13. dev server 使用 `@vitejs/plugin-basic-ssl` HTTPS，桌面 Chrome 需接受自签名证书才能使用定位
+14. Supabase visits 表 RLS 允许匿名 INSERT/SELECT，无需 service_role key
+15. 就餐专线 ×1.44 倍率（相比同路段普通公交），激光所→高超楼→系统楼 时间比 79:21
