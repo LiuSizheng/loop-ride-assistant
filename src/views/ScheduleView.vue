@@ -28,6 +28,7 @@ const activeMode = ref(0)
 const selectedRoute = ref<RouteName>('环线1路')
 const selectedDateType = ref<DateType>(getDateType())
 const expandedId = ref<string | null>(null)
+const sortByTime = ref(true)  // true=按发车时间排列, false=按班次排列
 const routes: RouteName[] = ['环线1路', '环线2路', '环线3路']
 
 const departures = computed(() => scheduleStore.getDepartures(selectedDateType.value, selectedRoute.value))
@@ -44,6 +45,11 @@ const groupedDepartures = computed(() => {
     groups.get(dep.shiftName)!.push(dep)
   }
   return new Map([...groups.entries()].sort((a, b) => shiftOrder(a[0]) - shiftOrder(b[0])))
+})
+
+// 按发车时间排列（平铺，不分班次）
+const timeSortedDepartures = computed(() => {
+  return [...departures.value].sort((a, b) => a.departureMinutes - b.departureMinutes)
 })
 
 function toggleExpand(recordId: string) {
@@ -214,8 +220,15 @@ function togglePlanExpand(recordId: string) {
       </van-tabs>
 
       <div class="date-toggle">
-        <van-button :type="selectedDateType === 'weekday' ? 'primary' : 'default'" size="small" @click="selectedDateType = 'weekday'">工作日</van-button>
-        <van-button :type="selectedDateType === 'weekend_holiday' ? 'primary' : 'default'" size="small" @click="selectedDateType = 'weekend_holiday'">周末/节假日</van-button>
+        <div class="date-toggle-left">
+          <van-button :type="selectedDateType === 'weekday' ? 'primary' : 'default'" size="small" @click="selectedDateType = 'weekday'">工作日</van-button>
+          <van-button :type="selectedDateType === 'weekend_holiday' ? 'primary' : 'default'" size="small" @click="selectedDateType = 'weekend_holiday'">周末/节假日</van-button>
+        </div>
+        <div class="sort-toggle" @click="sortByTime = !sortByTime">
+          <van-icon :name="sortByTime ? 'clock-o' : 'bars'" size="14" />
+          <span>{{ sortByTime ? '时间' : '班次' }}</span>
+          <van-icon name="arrow" size="10" style="margin-left:2px" />
+        </div>
       </div>
 
       <div v-if="selectedRoute === '环线1路' && selectedDateType === 'weekend_holiday'" class="notice">
@@ -223,14 +236,37 @@ function togglePlanExpand(recordId: string) {
       </div>
 
       <div v-if="departures.length > 0" class="departures">
-        <div v-for="[shift, deps] in groupedDepartures" :key="shift" class="shift-group">
-          <div class="shift-title">{{ shift }}</div>
-          <div v-for="dep in deps" :key="dep.recordId" class="dep-row" :class="{ expanded: expandedId === dep.recordId }">
+        <!-- 按班次排列 -->
+        <template v-if="!sortByTime">
+          <div v-for="[shift, deps] in groupedDepartures" :key="shift" class="shift-group">
+            <div class="shift-title">{{ shift }}</div>
+            <div v-for="dep in deps" :key="dep.recordId" class="dep-row" :class="{ expanded: expandedId === dep.recordId }">
+              <div class="dep-main" @click="toggleExpand(dep.recordId)">
+                <div class="dep-left">
+                  <RouteBadge :route="dep.route" :dining="isDining(dep)" />
+                  <span class="dep-time">{{ dep.departureTime }}</span>
+                  <span class="dep-station" v-if="dep.isGaochaoDeparture">系统楼发车</span>
+                </div>
+                <div class="dep-right">
+                  <span v-if="dep.confidence === 'speculative'" class="tag-spec">待确认</span>
+                  <span v-if="isDining(dep)" class="tag-dining">就餐</span>
+                  <van-icon name="arrow-down" :class="{ rotated: expandedId === dep.recordId }" />
+                </div>
+              </div>
+              <BusStopTimeline v-if="expandedId === dep.recordId" :departure-id="dep.recordId" :route-key="dep.routeKey" :show-map-btn="false" />
+            </div>
+          </div>
+        </template>
+
+        <!-- 按发车时间排列 -->
+        <div v-else class="shift-group">
+          <div v-for="dep in timeSortedDepartures" :key="dep.recordId" class="dep-row" :class="{ expanded: expandedId === dep.recordId }">
             <div class="dep-main" @click="toggleExpand(dep.recordId)">
               <div class="dep-left">
                 <RouteBadge :route="dep.route" :dining="isDining(dep)" />
                 <span class="dep-time">{{ dep.departureTime }}</span>
                 <span class="dep-station" v-if="dep.isGaochaoDeparture">系统楼发车</span>
+                <span class="dep-shift-tag">{{ dep.shiftName }}</span>
               </div>
               <div class="dep-right">
                 <span v-if="dep.confidence === 'speculative'" class="tag-spec">待确认</span>
@@ -296,7 +332,18 @@ function togglePlanExpand(recordId: string) {
 }
 
 /* 总时刻表 */
-.date-toggle { display: flex; gap: 10px; padding: 12px 16px; background: var(--color-card); }
+.date-toggle {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: var(--color-card);
+}
+.date-toggle-left { display: flex; gap: 10px; }
+.sort-toggle {
+  display: flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border: 1px solid var(--color-border); border-radius: 14px;
+  font-size: 12px; color: var(--color-text-secondary); cursor: pointer; user-select: none;
+  white-space: nowrap;
+}
+.sort-toggle:active { background: #F3F4F6; }
 .notice { margin: 12px 16px; padding: 12px; background: #FEF3C7; color: #92400E; border-radius: 8px; font-size: 13px; text-align: center; }
 .shift-group { padding: 0 16px; }
 .shift-title { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); padding: 12px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -306,6 +353,7 @@ function togglePlanExpand(recordId: string) {
 .dep-left { display: flex; align-items: center; gap: 8px; }
 .dep-time { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .dep-station { font-size: 11px; color: #F59E0B; white-space: nowrap; }
+.dep-shift-tag { font-size: 11px; color: #9CA3AF; white-space: nowrap; }
 .dep-right { display: flex; align-items: center; gap: 6px; }
 .tag-spec { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #FEF3C7; color: #92400E; }
 .tag-dining { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: #FDE68A; color: #7C2D12; }
