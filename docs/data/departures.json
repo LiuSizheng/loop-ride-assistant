@@ -109,14 +109,14 @@
     "tripSeq": 7,
     "departureTime": "11:15",
     "departureMinutes": 675,
-    "departureStation": "研究生宿舍楼",
-    "isGaochaoDeparture": false,
-    "routeKey": "HX1_NORMAL",
-    "patternName": "环线1路普通路线（研究生宿舍楼发车）",
+    "departureStation": "系统楼",
+    "isGaochaoDeparture": true,
+    "routeKey": "HX1_DINING",
+    "patternName": "环线1路就餐专线（系统楼发车）",
     "driver": "",
     "vehicleNo": "",
     "confidence": "confirmed",
-    "remark": ""
+    "remark": "原图打勾：从高超楼（系统工程学院旁）发车，并按就餐专线运行"
   },
   {
     "recordId": "S0008",
@@ -704,14 +704,14 @@
     "tripSeq": 1,
     "departureTime": "16:15",
     "departureMinutes": 975,
-    "departureStation": "研究生宿舍楼",
-    "isGaochaoDeparture": false,
-    "routeKey": "HX1_NORMAL",
-    "patternName": "环线1路普通路线（研究生宿舍楼发车）",
+    "departureStation": "系统楼",
+    "isGaochaoDeparture": true,
+    "routeKey": "HX1_DINING",
+    "patternName": "环线1路就餐专线（系统楼发车）",
     "driver": "",
     "vehicleNo": "",
     "confidence": "confirmed",
-    "remark": "夜班车"
+    "remark": "原图打勾：从高超楼（系统工程学院旁）发车，并按就餐专线运行"
   },
   {
     "recordId": "S0043",
